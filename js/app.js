@@ -75,6 +75,29 @@
     { id: 'cat-finance', name: 'Finance', color: '#f59e0b', icon: '📊' }
   ];
 
+  // ==========================================
+  // DATE HELPERS (Local Calendar Formatting)
+  // ==========================================
+  function getLocalDateString(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function getOffsetDateString(daysOffset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return getLocalDateString(d);
+  }
+
+  function formatForDateTimeLocal(timestamp) {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    const pad = num => String(num).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   const DEFAULT_TASKS = [
     {
       id: 'task-1',
@@ -83,8 +106,9 @@
       folderId: 'folder-alpha',
       categoryId: 'cat-design',
       priority: 'high',
-      dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+      dueDate: getOffsetDateString(1), // Tomorrow
       completed: false,
+      completedAt: null,
       starred: true,
       createdAt: Date.now() - 7200000
     },
@@ -95,8 +119,9 @@
       folderId: 'folder-marketing',
       categoryId: 'cat-finance',
       priority: 'medium',
-      dueDate: new Date(Date.now() + 172800000).toISOString().split('T')[0],
+      dueDate: getOffsetDateString(2),
       completed: false,
+      completedAt: null,
       starred: false,
       createdAt: Date.now() - 5000000
     },
@@ -107,8 +132,9 @@
       folderId: 'folder-marketing',
       categoryId: 'cat-work',
       priority: 'high',
-      dueDate: new Date().toISOString().split('T')[0], // Today
+      dueDate: getOffsetDateString(0), // Today
       completed: false,
+      completedAt: null,
       starred: true,
       createdAt: Date.now() - 3600000
     },
@@ -119,10 +145,11 @@
       folderId: 'folder-personal',
       categoryId: 'cat-health',
       priority: 'low',
-      dueDate: new Date().toISOString().split('T')[0],
+      dueDate: getOffsetDateString(0),
       completed: true,
+      completedAt: Date.now() - 1800000,
       starred: false,
-      createdAt: Date.now() - 1800000
+      createdAt: Date.now() - 3600000
     },
     {
       id: 'task-5',
@@ -133,6 +160,7 @@
       priority: 'medium',
       dueDate: '',
       completed: false,
+      completedAt: null,
       starred: false,
       createdAt: Date.now() - 900000
     }
@@ -304,21 +332,73 @@
       return '';
     });
 
-    // 2. Detect Due Date (^today, ^tomorrow, ^2026-10-25)
-    const dueRegex = /(?:^|\s)\^([a-zA-Z0-9\-_]+)/gi;
-    text = text.replace(dueRegex, (match, d) => {
-      const dLower = d.toLowerCase();
-      const now = new Date();
-      if (dLower === 'today') {
-        detectedDueDate = now.toISOString().split('T')[0];
-      } else if (dLower === 'tomorrow') {
-        const tmrw = new Date(now.getTime() + 86400000);
-        detectedDueDate = tmrw.toISOString().split('T')[0];
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-        detectedDueDate = d;
-      }
+  function parseDueDateToken(token) {
+    if (!token) return null;
+    const t = token.toLowerCase().trim();
+    if (t === 'today' || t === 'tonight') return getOffsetDateString(0);
+    if (t === 'tomorrow' || t === 'tmrw') return getOffsetDateString(1);
+    if (t === 'yesterday') return getOffsetDateString(-1);
+
+    const weekdays = {
+      sun: 0, sunday: 0,
+      mon: 1, monday: 1,
+      tue: 2, tuesday: 2,
+      wed: 3, wednesday: 3,
+      thu: 4, thursday: 4,
+      fri: 5, friday: 5,
+      sat: 6, saturday: 6
+    };
+
+    if (weekdays[t] !== undefined) {
+      const targetDay = weekdays[t];
+      const today = new Date();
+      const currentDay = today.getDay();
+      let diff = (targetDay - currentDay + 7) % 7;
+      if (diff === 0) diff = 7; // Next occurrence
+      const d = new Date();
+      d.setDate(today.getDate() + diff);
+      return getLocalDateString(d);
+    }
+
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+
+    // MM/DD or MM/DD/YYYY
+    const slashMatch = t.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+    if (slashMatch) {
+      const year = slashMatch[3] ? (slashMatch[3].length === 2 ? '20' + slashMatch[3] : slashMatch[3]) : new Date().getFullYear();
+      const month = String(slashMatch[1]).padStart(2, '0');
+      const day = String(slashMatch[2]).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    return null;
+  }
+
+  // 2. Detect Due Date:
+  // Pattern A: Tagged: ^today, ^tomorrow, ^friday, ^2026-10-25, due:today, due:friday
+  const taggedDueRegex = /(?:^|\s)(?:\^|due:)([a-zA-Z0-9\/\-_]+)/gi;
+  text = text.replace(taggedDueRegex, (match, d) => {
+    const parsed = parseDueDateToken(d);
+    if (parsed) {
+      detectedDueDate = parsed;
       return '';
+    }
+    return match;
+  });
+
+  // Pattern B: Natural phrasing: "due today", "due tomorrow", "due friday", "by tomorrow", "by monday"
+  if (!detectedDueDate) {
+    const naturalDueRegex = /(?:^|\s)(?:due|by)\s+(today|tomorrow|tmrw|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)(?=\s|$|[.,!?])/gi;
+    text = text.replace(naturalDueRegex, (match, d) => {
+      const parsed = parseDueDateToken(d);
+      if (parsed) {
+        detectedDueDate = parsed;
+        return '';
+      }
+      return match;
     });
+  }
 
     // 3. Detect Folder (@folderName or @"project name")
     const folderRegex = /(?:^|\s)@(?:\"([^\"]+)\"|([a-zA-Z0-9_\-]+))/g;
@@ -409,8 +489,10 @@
     entryPriorityLabel: document.getElementById('entryPriorityLabel'),
     entryPriorityDropdown: document.getElementById('entryPriorityDropdown'),
 
+    metaDateWrap: document.querySelector('.meta-date-wrap'),
     entryDueDateInput: document.getElementById('entryDueDateInput'),
     entryDueDateLabel: document.getElementById('entryDueDateLabel'),
+    clearEntryDueDateBtn: document.getElementById('clearEntryDueDateBtn'),
     quickAddCatShortcutBtn: document.getElementById('quickAddCatShortcutBtn'),
 
     // Strip controls & filters
@@ -461,6 +543,10 @@
     editTaskCategorySelect: document.getElementById('editTaskCategorySelect'),
     editTaskPrioritySelect: document.getElementById('editTaskPrioritySelect'),
     editTaskDueDateInput: document.getElementById('editTaskDueDateInput'),
+    editTaskCompletedSection: document.getElementById('editTaskCompletedSection'),
+    editTaskCompletedCheckbox: document.getElementById('editTaskCompletedCheckbox'),
+    editTaskCompletedDateGroup: document.getElementById('editTaskCompletedDateGroup'),
+    editTaskCompletedDateInput: document.getElementById('editTaskCompletedDateInput'),
     deleteTaskFromEditBtn: document.getElementById('deleteTaskFromEditBtn'),
 
     // Backup Modal
@@ -520,7 +606,7 @@
   function renderSidebarCounts() {
     const total = state.tasks.length;
     const completed = state.tasks.filter(t => t.completed).length;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const todayCount = state.tasks.filter(t => !t.completed && t.dueDate === todayStr).length;
     const importantCount = state.tasks.filter(t => !t.completed && (t.starred || t.priority === 'high')).length;
 
@@ -792,9 +878,13 @@
     if (state.entry.dueDate) {
       dom.entryDueDateLabel.textContent = formatDuePretty(state.entry.dueDate);
       dom.entryDueDateInput.value = state.entry.dueDate;
+      if (dom.metaDateWrap) dom.metaDateWrap.classList.add('has-date');
+      if (dom.clearEntryDueDateBtn) dom.clearEntryDueDateBtn.style.display = 'flex';
     } else {
       dom.entryDueDateLabel.textContent = 'No Due Date';
       dom.entryDueDateInput.value = '';
+      if (dom.metaDateWrap) dom.metaDateWrap.classList.remove('has-date');
+      if (dom.clearEntryDueDateBtn) dom.clearEntryDueDateBtn.style.display = 'none';
     }
   }
 
@@ -806,7 +896,7 @@
 
     // 1. Filter by Active View
     if (state.activeView.type === 'today') {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       tasks = tasks.filter(t => t.dueDate === todayStr);
     } else if (state.activeView.type === 'important') {
       tasks = tasks.filter(t => t.starred || t.priority === 'high');
@@ -897,13 +987,21 @@
     // Due date badge formatting
     let dueBadgeHtml = '';
     if (task.dueDate) {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       let dueClass = '';
       if (!task.completed) {
         if (task.dueDate < todayStr) dueClass = 'overdue';
         else if (task.dueDate === todayStr) dueClass = 'today';
       }
       dueBadgeHtml = `<span class="tag-badge due-badge ${dueClass}">📅 ${formatDuePretty(task.dueDate)}</span>`;
+    }
+
+    // Completed date badge formatting
+    let completedBadgeHtml = '';
+    if (task.completed) {
+      const tooltip = task.completedAt ? `Completed on ${formatFullDateTime(task.completedAt)}` : 'Completed task';
+      const text = task.completedAt ? formatCompletedPretty(task.completedAt) : 'Completed';
+      completedBadgeHtml = `<span class="tag-badge completed-badge" title="${tooltip}">✅ ${text}</span>`;
     }
 
     // Priority badge
@@ -936,6 +1034,7 @@
 
           ${priorityBadgeHtml}
           ${dueBadgeHtml}
+          ${completedBadgeHtml}
         </div>
       </div>
 
@@ -1078,6 +1177,7 @@
       priority: targetPriority,
       dueDate: targetDueDate,
       completed: false,
+      completedAt: null,
       starred: targetPriority === 'high',
       createdAt: Date.now()
     };
@@ -1085,9 +1185,11 @@
     state.tasks.unshift(newTask);
     saveState();
 
-    // Reset entry message input
+    // Reset entry message input & clear the entry due date so next task doesn't inherit it
     dom.taskMessageInput.value = '';
     dom.taskMessageInput.style.height = 'auto';
+    state.entry.dueDate = '';
+    renderEntryChips();
 
     SoundFX.add();
     showToast('Task added to your workspace!', 'success');
@@ -1099,15 +1201,16 @@
     if (!task) return;
 
     task.completed = !task.completed;
-    saveState();
-
     if (task.completed) {
+      task.completedAt = Date.now();
       SoundFX.complete();
       showToast(`Completed: "${task.title.substring(0, 24)}..."`, 'success');
     } else {
+      task.completedAt = null;
       SoundFX.uncomplete();
     }
 
+    saveState();
     renderAll();
   }
 
@@ -1481,6 +1584,20 @@
     dom.editTaskPrioritySelect.value = task.priority || 'medium';
     dom.editTaskDueDateInput.value = task.dueDate || '';
 
+    // Completed status and date
+    if (dom.editTaskCompletedCheckbox) {
+      dom.editTaskCompletedCheckbox.checked = !!task.completed;
+      if (task.completed) {
+        if (dom.editTaskCompletedDateGroup) dom.editTaskCompletedDateGroup.style.display = 'block';
+        if (dom.editTaskCompletedDateInput) {
+          dom.editTaskCompletedDateInput.value = formatForDateTimeLocal(task.completedAt || Date.now());
+        }
+      } else {
+        if (dom.editTaskCompletedDateGroup) dom.editTaskCompletedDateGroup.style.display = 'none';
+        if (dom.editTaskCompletedDateInput) dom.editTaskCompletedDateInput.value = '';
+      }
+    }
+
     dom.taskEditModal.classList.add('open');
     dom.editTaskTitleInput.focus();
   }
@@ -1501,6 +1618,19 @@
     task.categoryId = dom.editTaskCategorySelect.value;
     task.priority = dom.editTaskPrioritySelect.value;
     task.dueDate = dom.editTaskDueDateInput.value;
+
+    if (dom.editTaskCompletedCheckbox) {
+      task.completed = dom.editTaskCompletedCheckbox.checked;
+      if (task.completed) {
+        if (dom.editTaskCompletedDateInput && dom.editTaskCompletedDateInput.value) {
+          task.completedAt = new Date(dom.editTaskCompletedDateInput.value).getTime();
+        } else if (!task.completedAt) {
+          task.completedAt = Date.now();
+        }
+      } else {
+        task.completedAt = null;
+      }
+    }
 
     saveState();
     closeTaskEditModal();
@@ -1708,6 +1838,32 @@
       renderEntryChips();
     });
 
+    // Clear Due Date Button in Quick Add
+    if (dom.clearEntryDueDateBtn) {
+      dom.clearEntryDueDateBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        state.entry.dueDate = '';
+        dom.entryDueDateInput.value = '';
+        renderEntryChips();
+        SoundFX.click();
+      });
+    }
+
+    // Toggle completed checkbox in edit task modal
+    if (dom.editTaskCompletedCheckbox) {
+      dom.editTaskCompletedCheckbox.addEventListener('change', () => {
+        if (dom.editTaskCompletedCheckbox.checked) {
+          if (dom.editTaskCompletedDateGroup) dom.editTaskCompletedDateGroup.style.display = 'block';
+          if (dom.editTaskCompletedDateInput && !dom.editTaskCompletedDateInput.value) {
+            dom.editTaskCompletedDateInput.value = formatForDateTimeLocal(Date.now());
+          }
+        } else {
+          if (dom.editTaskCompletedDateGroup) dom.editTaskCompletedDateGroup.style.display = 'none';
+        }
+      });
+    }
+
     // Quick New Category shortcut in meta bar
     dom.quickAddCatShortcutBtn.addEventListener('click', () => {
       openCategoryModal();
@@ -1863,14 +2019,50 @@
     const parts = dateStr.split('-');
     if (parts.length !== 3) return dateStr;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     if (dateStr === todayStr) return 'Today';
 
-    const tmrw = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    if (dateStr === tmrw) return 'Tomorrow';
+    const tmrwStr = getOffsetDateString(1);
+    if (dateStr === tmrwStr) return 'Tomorrow';
 
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    const yestStr = getOffsetDateString(-1);
+    if (dateStr === yestStr) return 'Yesterday';
+
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function formatCompletedPretty(timestamp) {
+    if (!timestamp) return 'Completed';
+    const date = new Date(timestamp);
+    const todayStr = getLocalDateString();
+    const compStr = getLocalDateString(date);
+
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    if (compStr === todayStr) {
+      return `Completed Today at ${timeStr}`;
+    }
+
+    if (compStr === getOffsetDateString(-1)) {
+      return `Completed Yesterday at ${timeStr}`;
+    }
+
+    const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `Completed ${monthDay} at ${timeStr}`;
+  }
+
+  function formatFullDateTime(timestamp) {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    return d.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
   }
 
   // ==========================================

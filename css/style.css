@@ -775,6 +775,8 @@ html, body {
 
 .meta-date-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 .meta-date-wrap input[type="date"] {
   position: absolute;
@@ -784,6 +786,39 @@ html, body {
   height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+.meta-date-wrap.has-date .date-chip {
+  padding-right: 28px;
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+}
+.meta-date-wrap.has-date input[type="date"] {
+  width: calc(100% - 26px);
+}
+.clear-date-chip-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  transition: all var(--trans-fast);
+}
+.clear-date-chip-btn:hover {
+  background: rgba(244, 63, 94, 0.4);
+  color: #fff;
 }
 
 .meta-chip.text-btn {
@@ -1116,6 +1151,13 @@ html, body {
   border-color: rgba(245, 158, 11, 0.3);
 }
 
+.completed-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-weight: 500;
+}
+
 .priority-badge {
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -1404,6 +1446,24 @@ html, body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+}
+
+.checkbox-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-main);
+  user-select: none;
+  margin-top: 26px;
+}
+.checkbox-container input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent-emerald, #10b981);
 }
 
 /* Color Picker Grid */

@@ -282,6 +282,7 @@
                   <span class="chip-text" id="entryDueDateLabel">No Due Date</span>
                 </label>
                 <input type="date" id="entryDueDateInput">
+                <button type="button" class="clear-date-chip-btn" id="clearEntryDueDateBtn" title="Remove due date" style="display: none;">×</button>
               </div>
 
               <!-- Fast Add Category Shortcut button -->
@@ -472,6 +473,20 @@
           <div class="form-group">
             <label for="editTaskDueDateInput">Due Date</label>
             <input type="date" id="editTaskDueDateInput">
+          </div>
+        </div>
+
+        <div class="form-row-grid" id="editTaskCompletedSection">
+          <div class="form-group">
+            <label class="checkbox-container" for="editTaskCompletedCheckbox">
+              <input type="checkbox" id="editTaskCompletedCheckbox">
+              <span class="checkbox-label-text">Task Completed</span>
+            </label>
+          </div>
+
+          <div class="form-group" id="editTaskCompletedDateGroup" style="display: none;">
+            <label for="editTaskCompletedDateInput">Date & Time Completed</label>
+            <input type="datetime-local" id="editTaskCompletedDateInput">
           </div>
         </div>
 
