@@ -266,6 +266,8 @@
         // User closed the window
       } else if (err.code === 'auth/unauthorized-domain') {
         showToast(`Domain "${window.location.hostname}" is not authorized yet. Add it to Firebase Console > Authentication > Settings > Authorized Domains.`, 'error');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        showToast('Google Sign-In is not enabled yet. In Firebase Console, go to Authentication > Sign-in method and enable Google.', 'error');
       } else if (err.code === 'auth/configuration-not-found' || err.code === 'auth/invalid-api-key') {
         showToast('Invalid Firebase configuration. Please check your project settings.', 'error');
       } else {
