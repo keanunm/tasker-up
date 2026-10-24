@@ -1582,6 +1582,15 @@ html, body {
   .stats-pill {
     justify-content: space-between;
   }
+  .cloud-sync-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .cloud-account-menu {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
   .entry-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1591,3 +1600,457 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   CLOUD SYNC & AUTHENTICATION STYLES
+   ========================================================================== */
+.cloud-sync-container {
+  position: relative;
+}
+
+.cloud-sync-btn {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--trans-base);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+.cloud-sync-btn:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+.cloud-sync-btn.logged-in {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.cloud-sync-btn.logged-in:hover {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+}
+
+.cloud-user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cloud-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cloud-user-name {
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cloud-status-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cloud-status-badge::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.cloud-status-badge.synced {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.cloud-status-badge.synced::before {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+.cloud-status-badge.syncing {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.cloud-status-badge.syncing::before {
+  background: #f59e0b;
+  animation: pulseSync 1s infinite alternate;
+}
+.cloud-status-badge.unconfigured,
+.cloud-status-badge.offline {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.cloud-status-badge.unconfigured::before,
+.cloud-status-badge.offline::before {
+  background: #6366f1;
+}
+
+@keyframes pulseSync {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+/* Account Dropdown Menu */
+.cloud-account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 290px;
+  background: rgba(16, 21, 34, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.96);
+  transition: all var(--trans-base);
+}
+.cloud-account-menu.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.account-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.menu-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: var(--shadow-glow);
+  flex-shrink: 0;
+}
+.menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.menu-user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.menu-user-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu-user-email {
+  font-size: 0.73rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.account-menu-status .status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+.account-menu-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 12px 0;
+}
+.account-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.menu-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  text-align: left;
+}
+.menu-item-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  transform: translateX(2px);
+}
+.menu-item-btn.danger-item {
+  color: var(--accent-rose);
+}
+.menu-item-btn.danger-item:hover {
+  background: rgba(244, 63, 94, 0.12);
+  color: #fb7185;
+}
+
+/* Cloud Auth Modal */
+.modal-card-auth {
+  max-width: 460px;
+  width: 100%;
+}
+.auth-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.auth-brand-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: var(--shadow-glow);
+  flex-shrink: 0;
+}
+.modal-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.auth-tabs {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+  margin: 18px 0 20px;
+}
+.auth-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  text-align: center;
+}
+.auth-tab-btn:hover {
+  color: var(--text-main);
+}
+.auth-tab-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.45);
+}
+.auth-tab-panel {
+  display: none;
+}
+.auth-tab-panel.active {
+  display: block;
+  animation: authFadeIn 0.22s ease-out;
+}
+@keyframes authFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.google-auth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans-base);
+  box-shadow: var(--shadow-sm);
+}
+.google-auth-btn:hover {
+  background: #f8fafc;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+.google-logo {
+  flex-shrink: 0;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0;
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.auth-divider span {
+  padding: 0 12px;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.forgot-link {
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* Firebase Config setup styles */
+.config-instructions {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.config-instructions a {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+}
+.config-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.step-num {
+  background: var(--accent-primary);
+  color: #fff;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.quick-paste-box {
+  background: var(--bg-input);
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.quick-paste-box label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.quick-paste-box textarea {
+  width: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--accent-cyan);
+  padding: 6px 8px;
+  resize: vertical;
+}
+.btn-sm {
+  align-self: flex-end;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+}
+.config-manual-form .form-group {
+  margin-bottom: 0;
+}
+
+/* Mobile adjustments */
+.mobile-cloud-btn {
+  color: var(--text-main);
+}
+.mobile-cloud-btn[data-status="synced"] {
+  color: var(--accent-emerald);
+}
+.mobile-cloud-btn[data-status="syncing"] {
+  color: var(--accent-amber);
+}
+

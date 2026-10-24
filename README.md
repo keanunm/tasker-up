@@ -75,6 +75,7 @@ Categories let you group related types of work across all your folders:
 
 ## 💎 Extra Features You'll Love
 
+- **☁️ Cloud Login & Multi-Device Sync**: Sign in with Google or Email/Password. Your tasks, project folders, and categories automatically sync in real-time across your phone, tablet, and computer with offline support.
 - **🎙️ Voice Dictation**: Click the microphone icon to speak your tasks aloud (Speech-to-Text).
 - **🔊 Satisfying Audio Feedback**: Enjoy rewarding sound chimes when you check off items or create tasks (includes a quick mute toggle in the sidebar).
 - **⭐ Star & Priority Pinning**: Star your most important items to pin them to the top of your workspace.

@@ -254,7 +254,7 @@
     }
   }
 
-  function saveState() {
+  function saveState(skipCloud = false) {
     try {
       const payload = {
         folders: state.folders,
@@ -262,6 +262,10 @@
         tasks: state.tasks
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+      if (!skipCloud && window.CloudSync && typeof window.CloudSync.queueCloudSave === 'function') {
+        window.CloudSync.queueCloudSave(payload);
+      }
     } catch (e) {
       console.error('Storage write error', e);
     }
@@ -1815,6 +1819,30 @@
     });
 
     setupVoiceInput();
+
+    // Cloud Sync event bridges
+    window.addEventListener('tasker:get-workspace', (e) => {
+      e.detail.data = {
+        folders: state.folders,
+        categories: state.categories,
+        tasks: state.tasks
+      };
+    });
+
+    window.addEventListener('tasker:remote-update', (e) => {
+      const { folders, categories, tasks } = e.detail;
+      if (folders && Array.isArray(folders) && folders.length) {
+        state.folders = folders;
+      }
+      if (categories && Array.isArray(categories) && categories.length) {
+        state.categories = categories;
+      }
+      if (tasks && Array.isArray(tasks)) {
+        state.tasks = tasks;
+      }
+      saveState(true);
+      renderAll();
+    });
   }
 
   // ==========================================
