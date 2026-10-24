@@ -167,6 +167,12 @@ html, body {
   color: #fff;
   box-shadow: var(--shadow-glow);
   flex-shrink: 0;
+  transition: transform var(--trans-bounce), box-shadow var(--trans-base);
+  cursor: pointer;
+}
+.brand-icon:hover {
+  transform: scale(1.08) rotate(-4deg);
+  box-shadow: 0 0 28px rgba(99, 102, 241, 0.6);
 }
 .brand-text {
   display: flex;
