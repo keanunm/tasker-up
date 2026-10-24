@@ -1,22 +1,13 @@
 /**
  * Tasker Up! — Firebase Cloud Configuration
- * 
- * To enable cloud login and multi-device real-time sync:
- * 1. Go to https://console.firebase.google.com/
- * 2. Create a free Firebase project
- * 3. Enable Authentication (Google & Email/Password providers)
- * 4. Enable Cloud Firestore in "Production" or "Test" mode
- * 5. Add a Web App in Project Settings, copy your firebaseConfig and paste below
- * 
- * Note: You can also paste your config directly inside the Tasker Up UI
- * by clicking "Cloud Sync" -> "⚙️ Firebase Config".
+ * Pre-configured with your Google Cloud Project for seamless cross-device synchronization.
  */
 
-window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBdRN2DfeCnlOgPqv1RiK0gACYJbKTdGhk",
+  authDomain: "tasker-up.firebaseapp.com",
+  projectId: "tasker-up",
+  storageBucket: "tasker-up.firebasestorage.app",
+  messagingSenderId: "436842155584",
+  appId: "1:436842155584:web:411e5b89d84ea9c95d59a5"
 };
