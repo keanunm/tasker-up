@@ -166,7 +166,13 @@
       (error) => {
         console.error('Firestore listener error:', error);
         updateUIStatus('error', 'Sync Error');
-        showToast('Sync error: ' + error.message, 'error');
+        if (error.code === 'not-found' || (error.message && error.message.includes('not exist'))) {
+          showToast('Cloud Firestore database does not exist yet. Go to Firebase Console > Firestore Database and click "Create database".', 'error');
+        } else if (error.code === 'permission-denied') {
+          showToast('Firestore permission denied. Please allow read/write in Firebase Console > Firestore Database > Rules.', 'error');
+        } else {
+          showToast('Sync error: ' + error.message, 'error');
+        }
       }
     );
   }
@@ -215,7 +221,13 @@
     } catch (err) {
       console.error('Cloud save failed:', err);
       updateUIStatus('error', 'Sync Failed');
-      showToast('Could not save to cloud: ' + err.message, 'error');
+      if (err.code === 'not-found' || (err.message && err.message.includes('not exist'))) {
+        showToast('Firestore database not created yet. Please click "Create database" in Firebase Console > Firestore Database.', 'error');
+      } else if (err.code === 'permission-denied') {
+        showToast('Firestore permission denied. Please allow read/write in Firebase Console > Firestore Database > Rules.', 'error');
+      } else {
+        showToast('Could not save to cloud: ' + err.message, 'error');
+      }
     } finally {
       setTimeout(() => {
         isSavingToCloud = false;
