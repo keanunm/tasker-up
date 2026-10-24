@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasker Up! — Smart Conversational Task & Project Manager</title>
+  <meta name="description" content="A modern, high-productivity task manager with instant message-based task entry, custom categories, folder-based project organization, and smart natural language parsing.">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="theme-dark">
+  <!-- Subtle ambient background glow -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <div class="app-container" id="app">
+    <!-- MOBILE HEADER -->
+    <header class="mobile-header">
+      <button class="icon-btn" id="mobileMenuBtn" aria-label="Open sidebar menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="app-brand">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <span class="brand-title">Tasker<span class="brand-accent">Up!</span></span>
+      </div>
+      <button class="icon-btn" id="mobileStatsBtn" aria-label="Toggle quick stats">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      </button>
+    </header>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="app-brand desktop-brand">
+          <div class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">Tasker<span class="brand-accent">Up!</span></span>
+            <span class="brand-subtitle">Smart Project Hub</span>
+          </div>
+        </div>
+        <button class="icon-btn mobile-close-btn" id="sidebarCloseBtn" aria-label="Close sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Quick System Views -->
+      <div class="sidebar-section">
+        <div class="section-title">Views</div>
+        <nav class="nav-list" id="systemViewsList">
+          <button class="nav-item active" data-view="all">
+            <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg></span>
+            <span class="nav-label">All Tasks</span>
+            <span class="nav-count" id="count-all">0</span>
+          </button>
+          <button class="nav-item" data-view="today">
+            <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
+            <span class="nav-label">Today</span>
+            <span class="nav-count" id="count-today">0</span>
+          </button>
+          <button class="nav-item" data-view="important">
+            <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>
+            <span class="nav-label">Starred / Priority</span>
+            <span class="nav-count" id="count-important">0</span>
+          </button>
+          <button class="nav-item" data-view="completed">
+            <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+            <span class="nav-label">Completed</span>
+            <span class="nav-count" id="count-completed">0</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Folders / Projects Section -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">Projects / Folders</span>
+          <button class="add-section-btn" id="openNewFolderModalBtn" title="Create New Folder">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>New</span>
+          </button>
+        </div>
+        <div class="folders-list" id="foldersList">
+          <!-- Dynamically Rendered Folders -->
+        </div>
+      </div>
+
+      <!-- Categories Section -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">Categories</span>
+          <button class="add-section-btn" id="openNewCategoryModalBtn" title="Create New Category">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>New</span>
+          </button>
+        </div>
+        <div class="categories-list" id="categoriesList">
+          <!-- Dynamically Rendered Categories -->
+        </div>
+      </div>
+
+      <!-- Sidebar Footer / Controls -->
+      <div class="sidebar-footer">
+        <div class="sound-toggle-wrap">
+          <button class="toggle-btn" id="soundToggleBtn" title="Toggle audio feedback">
+            <span id="soundIcon">🔊</span>
+            <span class="toggle-label">Sound FX</span>
+          </button>
+          <button class="toggle-btn" id="backupDataBtn" title="Backup or Export Tasks">
+            <span>💾</span>
+            <span class="toggle-label">Backup</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-content">
+      <!-- TOP STATUS & SEARCH BAR -->
+      <header class="top-bar">
+        <div class="current-view-info">
+          <div class="view-tag" id="currentViewBadge">Folder</div>
+          <h1 class="view-title" id="currentViewTitle">All Tasks</h1>
+          <p class="view-description" id="currentViewDescription">Showing all open & completed items across your workspace</p>
+        </div>
+
+        <div class="top-bar-actions">
+          <div class="search-box">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="taskSearchInput" placeholder="Filter tasks, #tag, or @folder..." autocomplete="off">
+            <button class="search-clear-btn" id="clearSearchBtn" aria-label="Clear search">×</button>
+          </div>
+
+          <div class="stats-pill" id="productivityScorePill" title="Completion Rate">
+            <span class="stats-pill-icon">⚡</span>
+            <span class="stats-pill-text" id="statsPillText">0/0 done</span>
+            <div class="stats-progress-ring">
+              <svg width="28" height="28" viewBox="0 0 36 36">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <path class="circle-progress" id="headerProgressArc" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONVERSATIONAL QUICK-ENTRY CARD -->
+      <section class="quick-entry-section">
+        <div class="quick-entry-card" id="quickEntryCard">
+          <div class="entry-header">
+            <div class="entry-prompt-badge">
+              <span class="sparkle-pulse">✨</span>
+              <span>Fast Message Add</span>
+            </div>
+            <div class="entry-hints">
+              <span>Type naturally or use: <kbd>#category</kbd> <kbd>@folder</kbd> <kbd>!urgent</kbd> <kbd>^tomorrow</kbd></span>
+            </div>
+          </div>
+
+          <form id="quickEntryForm" class="entry-form" onsubmit="return false;">
+            <div class="entry-input-wrapper">
+              <textarea 
+                id="taskMessageInput" 
+                rows="1" 
+                placeholder="Write a message to add to tasks... (e.g. 'Review client proposal with Kevin #Work @Client Alpha !high ^tomorrow')"
+                autocomplete="off"
+              ></textarea>
+              <div class="entry-action-buttons">
+                <button type="button" class="tool-btn" id="voiceInputBtn" title="Voice dictation (speech-to-text)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                </button>
+                <button type="submit" class="submit-entry-btn" id="submitTaskBtn" title="Add Task (Press Enter)">
+                  <span>Add Task</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- SMART CHIPS & SELECTORS BAR -->
+            <div class="entry-meta-bar">
+              <!-- Folder selector pill -->
+              <div class="meta-dropdown-wrap">
+                <button type="button" class="meta-chip" id="entryFolderBtn">
+                  <span class="chip-icon" id="entryFolderIcon">📁</span>
+                  <span class="chip-text" id="entryFolderLabel">Folder: General</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="dropdown-popover" id="entryFolderDropdown">
+                  <!-- Folder options dynamically loaded -->
+                </div>
+              </div>
+
+              <!-- Category selector pill -->
+              <div class="meta-dropdown-wrap">
+                <button type="button" class="meta-chip" id="entryCategoryBtn">
+                  <span class="chip-color-dot" id="entryCategoryDot" style="background-color: var(--accent-indigo);"></span>
+                  <span class="chip-text" id="entryCategoryLabel">Category: Tasks</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="dropdown-popover" id="entryCategoryDropdown">
+                  <!-- Category options dynamically loaded -->
+                </div>
+              </div>
+
+              <!-- Priority selector pill -->
+              <div class="meta-dropdown-wrap">
+                <button type="button" class="meta-chip" id="entryPriorityBtn">
+                  <span class="priority-dot priority-medium" id="entryPriorityDot"></span>
+                  <span class="chip-text" id="entryPriorityLabel">Priority: Normal</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="dropdown-popover" id="entryPriorityDropdown">
+                  <button type="button" class="dropdown-item" data-priority="low">
+                    <span class="priority-dot priority-low"></span> Low Priority
+                  </button>
+                  <button type="button" class="dropdown-item" data-priority="medium">
+                    <span class="priority-dot priority-medium"></span> Normal Priority
+                  </button>
+                  <button type="button" class="dropdown-item" data-priority="high">
+                    <span class="priority-dot priority-high"></span> High / Urgent
+                  </button>
+                </div>
+              </div>
+
+              <!-- Due Date picker chip -->
+              <div class="meta-date-wrap">
+                <label for="entryDueDateInput" class="meta-chip date-chip" title="Set Due Date">
+                  <span class="chip-icon">📅</span>
+                  <span class="chip-text" id="entryDueDateLabel">No Due Date</span>
+                </label>
+                <input type="date" id="entryDueDateInput">
+              </div>
+
+              <!-- Fast Add Category Shortcut button -->
+              <button type="button" class="meta-chip text-btn" id="quickAddCatShortcutBtn" title="Create a new category right now">
+                <span>+ New Category</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ACTIVE FILTER & CONTROL STRIP -->
+      <section class="task-controls-strip">
+        <div class="active-filters" id="activeFilterTags">
+          <!-- Active filter pills appear here -->
+        </div>
+
+        <div class="strip-controls">
+          <div class="sort-selector">
+            <label for="taskSortSelect">Sort by:</label>
+            <select id="taskSortSelect" class="custom-select">
+              <option value="created-desc">Newest First</option>
+              <option value="created-asc">Oldest First</option>
+              <option value="priority-desc">Priority (High to Low)</option>
+              <option value="due-asc">Due Date (Earliest)</option>
+              <option value="title-asc">Alphabetical (A-Z)</option>
+            </select>
+          </div>
+
+          <div class="view-mode-toggle">
+            <button class="view-btn active" id="viewAllStateBtn" data-filter-state="all">All</button>
+            <button class="view-btn" id="viewActiveStateBtn" data-filter-state="active">Active</button>
+            <button class="view-btn" id="viewCompletedStateBtn" data-filter-state="completed">Completed</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TASK LIST VIEW -->
+      <section class="task-list-section">
+        <div class="task-list" id="taskListContainer">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Empty state when no tasks match -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <div class="empty-icon-wrap">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <h3 class="empty-title">No tasks found</h3>
+          <p class="empty-desc">Type a message above or switch folders to see your tasks.</p>
+          <button class="primary-btn" id="emptyStateAddBtn">Write a Task</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- MODAL: CREATE / EDIT CATEGORY -->
+  <div class="modal-backdrop" id="categoryModal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title" id="categoryModalTitle">Create New Category</h2>
+        <button class="modal-close-btn" id="closeCategoryModalBtn" aria-label="Close dialog">×</button>
+      </div>
+      <form id="categoryForm" class="modal-form">
+        <input type="hidden" id="editCategoryId">
+        
+        <div class="form-group">
+          <label for="categoryNameInput">Category Name</label>
+          <input type="text" id="categoryNameInput" placeholder="e.g. Work, Health, Finances, Social" required maxlength="30" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label>Select Accent Color</label>
+          <div class="color-picker-grid" id="categoryColorPicker">
+            <!-- Color swatches rendered in JS -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Select Icon</label>
+          <div class="icon-picker-grid" id="categoryIconPicker">
+            <!-- Preset icons rendered in JS -->
+          </div>
+        </div>
+
+        <div class="preview-box">
+          <span class="preview-label">Live Badge Preview:</span>
+          <span class="category-pill-preview" id="categoryPreviewPill">
+            <span class="cat-pill-icon">🏷️</span>
+            <span class="cat-pill-name">Preview Category</span>
+          </span>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelCategoryModalBtn">Cancel</button>
+          <button type="submit" class="primary-btn" id="saveCategoryBtn">Save Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE / EDIT FOLDER -->
+  <div class="modal-backdrop" id="folderModal" role="dialog" aria-modal="true" aria-labelledby="folderModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title" id="folderModalTitle">Create New Project Folder</h2>
+        <button class="modal-close-btn" id="closeFolderModalBtn" aria-label="Close dialog">×</button>
+      </div>
+      <form id="folderForm" class="modal-form">
+        <input type="hidden" id="editFolderId">
+
+        <div class="form-group">
+          <label for="folderNameInput">Project / Folder Name</label>
+          <input type="text" id="folderNameInput" placeholder="e.g. Website Redesign, Client Alpha, Personal Growth" required maxlength="32" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="folderDescInput">Description / Scope (Optional)</label>
+          <input type="text" id="folderDescInput" placeholder="Brief note about this project..." maxlength="80" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label>Folder Color Theme</label>
+          <div class="color-picker-grid" id="folderColorPicker">
+            <!-- Swatches -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Folder Icon</label>
+          <div class="icon-picker-grid" id="folderIconPicker">
+            <!-- Folder icons -->
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelFolderModalBtn">Cancel</button>
+          <button type="submit" class="primary-btn" id="saveFolderBtn">Save Project Folder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT TASK DETAILS -->
+  <div class="modal-backdrop" id="taskEditModal" role="dialog" aria-modal="true" aria-labelledby="taskEditModalTitle">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <h2 class="modal-title" id="taskEditModalTitle">Edit Task</h2>
+        <button class="modal-close-btn" id="closeTaskEditModalBtn" aria-label="Close dialog">×</button>
+      </div>
+      <form id="taskEditForm" class="modal-form">
+        <input type="hidden" id="editTaskId">
+
+        <div class="form-group">
+          <label for="editTaskTitleInput">Task Title / Action Item</label>
+          <input type="text" id="editTaskTitleInput" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="editTaskNotesInput">Notes & Details (Markdown or bullet points)</label>
+          <textarea id="editTaskNotesInput" rows="4" placeholder="Add additional details, links, or sub-notes..."></textarea>
+        </div>
+
+        <div class="form-row-grid">
+          <div class="form-group">
+            <label for="editTaskFolderSelect">Project Folder</label>
+            <select id="editTaskFolderSelect" class="custom-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="editTaskCategorySelect">Category</label>
+            <select id="editTaskCategorySelect" class="custom-select"></select>
+          </div>
+        </div>
+
+        <div class="form-row-grid">
+          <div class="form-group">
+            <label for="editTaskPrioritySelect">Priority</label>
+            <select id="editTaskPrioritySelect" class="custom-select">
+              <option value="low">Low Priority</option>
+              <option value="medium">Normal Priority</option>
+              <option value="high">Urgent / High</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="editTaskDueDateInput">Due Date</label>
+            <input type="date" id="editTaskDueDateInput">
+          </div>
+        </div>
+
+        <div class="modal-actions space-between">
+          <button type="button" class="danger-btn" id="deleteTaskFromEditBtn">Delete Task</button>
+          <div class="action-group">
+            <button type="button" class="secondary-btn" id="cancelTaskEditModalBtn">Cancel</button>
+            <button type="submit" class="primary-btn" id="saveTaskEditBtn">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: BACKUP / DATA MANAGEMENT -->
+  <div class="modal-backdrop" id="backupModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Data Backup & Export</h2>
+        <button class="modal-close-btn" id="closeBackupModalBtn">×</button>
+      </div>
+      <div class="backup-modal-body">
+        <p>Your tasks, folders, and categories are saved automatically in your browser's local storage. You can export a JSON file or import previously exported data below.</p>
+        
+        <div class="backup-actions-grid">
+          <button class="primary-btn w-100" id="exportDataBtn">
+            <span>📥 Export Workspace (JSON)</span>
+          </button>
+          
+          <label class="secondary-btn w-100 file-input-label" for="importDataFileInput">
+            <span>📤 Import Workspace (JSON)</span>
+            <input type="file" id="importDataFileInput" accept=".json" style="display: none;">
+          </label>
+          
+          <button class="danger-btn w-100" id="resetDemoDataBtn">
+            <span>🔄 Reload Sample Tasks</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- APPLICATION SCRIPTS -->
+  <script src="js/app.js"></script>
+</body>
+</html>
