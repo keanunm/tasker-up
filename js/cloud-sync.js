@@ -21,7 +21,12 @@
   // 1. CONFIGURATION MANAGEMENT
   // ==========================================
   function getFirebaseConfig() {
-    // 1. Check localStorage first (saved via UI)
+    // 1. Pre-configured window.FIREBASE_CONFIG from firebase-config.js takes top priority
+    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.FIREBASE_CONFIG.projectId) {
+      return window.FIREBASE_CONFIG;
+    }
+
+    // 2. Check localStorage fallback (if customized in-browser)
     try {
       const stored = localStorage.getItem(CONFIG_STORAGE_KEY);
       if (stored) {
@@ -32,11 +37,6 @@
       }
     } catch (e) {
       console.warn('Error reading stored Firebase config', e);
-    }
-
-    // 2. Fallback to window.FIREBASE_CONFIG from firebase-config.js
-    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.FIREBASE_CONFIG.projectId) {
-      return window.FIREBASE_CONFIG;
     }
 
     return null;
@@ -222,9 +222,19 @@
   // 4. GOOGLE SIGN-IN ACTION
   // ==========================================
   async function signInWithGoogle() {
+    // Google OAuth requires http: or https: domain (not local file:///)
+    if (window.location.protocol === 'file:') {
+      showToast('⚠️ Google Sign-In requires your live website (https://keanunm.github.io/tasker-up/) or http://localhost, not a local file path (file://).', 'error');
+      setTimeout(() => {
+        if (confirm('Google Sign-In requires an active web server or your live site. Would you like to open your live site now?')) {
+          window.open('https://keanunm.github.io/tasker-up/', '_blank');
+        }
+      }, 350);
+      return;
+    }
+
     if (!initFirebase()) {
-      showConfigDrawer();
-      showToast('Please connect your cloud project once to enable Google Sign-In', 'info');
+      showToast('Please check your Firebase configuration.', 'error');
       return;
     }
 
@@ -239,8 +249,9 @@
         showToast('Sign-in popup was blocked by your browser. Please allow popups.', 'error');
       } else if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
         // User closed the window
+      } else if (err.code === 'auth/unauthorized-domain') {
+        showToast(`Domain "${window.location.hostname}" is not authorized yet. Add it to Firebase Console > Authentication > Settings > Authorized Domains.`, 'error');
       } else if (err.code === 'auth/configuration-not-found' || err.code === 'auth/invalid-api-key') {
-        showConfigDrawer();
         showToast('Invalid Firebase configuration. Please check your project settings.', 'error');
       } else {
         showToast('Google Sign-in: ' + err.message, 'error');
