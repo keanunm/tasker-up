@@ -16,6 +16,7 @@
   let isSavingToCloud = false;
   let saveDebounceTimer = null;
   let lastSyncedTimestamp = null;
+  let isInitialized = false;
 
   // ==========================================
   // 1. CONFIGURATION MANAGEMENT
@@ -61,6 +62,11 @@
   // 2. FIREBASE INITIALIZATION
   // ==========================================
   function initFirebase() {
+    // If already successfully initialized, return true immediately
+    if (isInitialized && firebaseApp && auth && db) {
+      return true;
+    }
+
     if (typeof firebase === 'undefined') {
       console.warn('Firebase SDK not loaded.');
       updateUIStatus('offline', 'Firebase SDK Unavailable');
@@ -83,13 +89,22 @@
       auth = firebase.auth();
       db = firebase.firestore();
 
-      // Enable offline persistence
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {
-        // Multi-tab or browser constraint ignored
-      });
+      // Enable offline persistence safely (only once, never throw)
+      if (!isInitialized) {
+        try {
+          db.enablePersistence({ synchronizeTabs: true }).catch(() => {
+            // Multi-tab or browser constraint ignored
+          });
+        } catch (persistenceErr) {
+          // If persistence has already been started or is unsupported, silently continue
+          console.debug('Firestore persistence note:', persistenceErr.message);
+        }
 
-      // Listen for Google Auth state changes
-      auth.onAuthStateChanged(handleAuthStateChange);
+        // Listen for Google Auth state changes
+        auth.onAuthStateChanged(handleAuthStateChange);
+      }
+
+      isInitialized = true;
       return true;
     } catch (err) {
       console.error('Firebase initialization error:', err);
