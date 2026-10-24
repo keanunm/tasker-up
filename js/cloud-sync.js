@@ -439,7 +439,14 @@
       btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
     document.querySelectorAll('.auth-tab-panel').forEach(panel => {
-      panel.classList.toggle('active', panel.id === `tabPanel-${tabId}`);
+      const isActive = panel.id === `tabPanel-${tabId}`;
+      panel.classList.toggle('active', isActive);
+      if (isActive) {
+        const firstInput = panel.querySelector('input:not([type="hidden"])');
+        if (firstInput) {
+          setTimeout(() => firstInput.focus(), 80);
+        }
+      }
     });
   }
 
@@ -527,6 +534,27 @@
     document.querySelectorAll('.auth-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         switchAuthTab(btn.getAttribute('data-tab'));
+      });
+    });
+
+    // Password visibility toggle buttons
+    document.querySelectorAll('.password-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+
+        const eyeOpen = btn.querySelector('.eye-open');
+        const eyeClosed = btn.querySelector('.eye-closed');
+        if (eyeOpen && eyeClosed) {
+          eyeOpen.classList.toggle('hidden', isPassword);
+          eyeClosed.classList.toggle('hidden', !isPassword);
+        }
       });
     });
 
