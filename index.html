@@ -525,164 +525,58 @@
         <div class="auth-header-brand">
           <div class="auth-brand-badge">☁️</div>
           <div>
-            <h2 class="modal-title" id="cloudModalTitle">Tasker Up! Cloud</h2>
-            <p class="modal-subtitle">Access your tasks & projects from any device in real-time</p>
+            <h2 class="modal-title" id="cloudModalTitle">Sync with Google</h2>
+            <p class="modal-subtitle">Access your tasks, folders & categories from any device</p>
           </div>
         </div>
         <button class="modal-close-btn" id="closeCloudAuthModalBtn" aria-label="Close dialog">×</button>
       </div>
 
-      <!-- Auth Navigation Tabs -->
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab-btn active" data-tab="signin">Sign In</button>
-        <button type="button" class="auth-tab-btn" data-tab="signup">Create Account</button>
-        <button type="button" class="auth-tab-btn" data-tab="config">⚙️ Firebase Setup</button>
-      </div>
-
-      <div class="auth-tab-content">
-        <!-- TAB 1: SIGN IN -->
-        <div class="auth-tab-panel active" id="tabPanel-signin">
-          <button type="button" class="google-auth-btn" id="googleSignInBtn">
-            <svg class="google-logo" width="18" height="18" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-            </svg>
-            <span>Continue with Google</span>
-          </button>
-
-          <div class="auth-divider">
-            <span>or sign in with email</span>
-          </div>
-
-          <form id="emailSignInForm" class="auth-form">
-            <div class="form-group">
-              <label for="signInEmail">Email Address</label>
-              <div class="input-icon-wrap">
-                <span class="input-leading-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                </span>
-                <input type="email" id="signInEmail" placeholder="you@example.com" required autocomplete="email">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <div class="label-with-action">
-                <label for="signInPassword">Password</label>
-                <a href="#" class="forgot-link" id="forgotPasswordLink">Forgot?</a>
-              </div>
-              <div class="input-icon-wrap has-toggle">
-                <span class="input-leading-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                </span>
-                <input type="password" id="signInPassword" placeholder="••••••••" required autocomplete="current-password">
-                <button type="button" class="password-toggle-btn" data-target="signInPassword" aria-label="Toggle password visibility">
-                  <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  <svg class="eye-closed hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                </button>
-              </div>
-            </div>
-
-            <button type="submit" class="primary-btn w-100" id="signInSubmitBtn">
-              <span>Sign In</span>
-            </button>
-          </form>
-        </div>
-
-        <!-- TAB 2: CREATE ACCOUNT -->
-        <div class="auth-tab-panel" id="tabPanel-signup">
-          <form id="emailSignUpForm" class="auth-form">
-            <div class="form-group">
-              <label for="signUpName">Your Name</label>
-              <div class="input-icon-wrap">
-                <span class="input-leading-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                </span>
-                <input type="text" id="signUpName" placeholder="Alex Morgan" required autocomplete="name">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="signUpEmail">Email Address</label>
-              <div class="input-icon-wrap">
-                <span class="input-leading-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                </span>
-                <input type="email" id="signUpEmail" placeholder="you@example.com" required autocomplete="email">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="signUpPassword">Choose Password (min 6 chars)</label>
-              <div class="input-icon-wrap has-toggle">
-                <span class="input-leading-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                </span>
-                <input type="password" id="signUpPassword" placeholder="••••••••" minlength="6" required autocomplete="new-password">
-                <button type="button" class="password-toggle-btn" data-target="signUpPassword" aria-label="Toggle password visibility">
-                  <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  <svg class="eye-closed hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                </button>
-              </div>
-            </div>
-
-            <button type="submit" class="primary-btn w-100" id="signUpSubmitBtn">
-              <span>Create Free Account</span>
-            </button>
-          </form>
-        </div>
-
-        <!-- TAB 3: FIREBASE SETUP & CONFIG -->
-        <div class="auth-tab-panel" id="tabPanel-config">
-          <div class="config-instructions">
-            <div class="config-step">
-              <span class="step-num">1</span>
-              <span>Go to free <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a> & click <b>Add project</b>.</span>
-            </div>
-            <div class="config-step">
-              <span class="step-num">2</span>
-              <span>In your project, enable <b>Authentication</b> (Google + Email) and <b>Cloud Firestore</b> database.</span>
-            </div>
-            <div class="config-step">
-              <span class="step-num">3</span>
-              <span>Under Project Settings ⚙️ &rarr; General &rarr; <i>Your apps</i>, click Web (<code>&lt;/&gt;</code>) and paste your configuration below:</span>
+      <div class="google-sync-card">
+        <div class="sync-benefit-list">
+          <div class="sync-benefit-item">
+            <span class="benefit-icon">📱</span>
+            <div class="benefit-text">
+              <strong>Multi-Device Access</strong>
+              <span>Sign in on your phone, laptop, or tablet to access your tasks anywhere.</span>
             </div>
           </div>
+          <div class="sync-benefit-item">
+            <span class="benefit-icon">⚡</span>
+            <div class="benefit-text">
+              <strong>Instant Real-Time Sync</strong>
+              <span>Any task added or checked off on one device updates all your devices automatically.</span>
+            </div>
+          </div>
+          <div class="sync-benefit-item">
+            <span class="benefit-icon">🔒</span>
+            <div class="benefit-text">
+              <strong>Private & Automatic</strong>
+              <span>Zero passwords to remember. Your workspace is securely tied to your Google account.</span>
+            </div>
+          </div>
+        </div>
 
-          <div class="quick-paste-box">
-            <label for="firebaseJsonPasteInput">Quick Paste <code>firebaseConfig</code> (JS snippet or JSON):</label>
+        <button type="button" class="google-auth-btn" id="googleSignInBtn">
+          <svg class="google-logo" width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <!-- Discreet Project Settings -->
+        <div class="config-toggle-wrap">
+          <button type="button" class="text-link-btn" id="toggleFirebaseConfigBtn">⚙️ Cloud Project Settings</button>
+          <div class="config-drawer hidden" id="firebaseConfigDrawer">
+            <p class="config-drawer-hint">Paste your Firebase / Google Web configuration snippet here:</p>
             <textarea id="firebaseJsonPasteInput" rows="3" placeholder='const firebaseConfig = { apiKey: "AIza...", projectId: "my-app", ... };'></textarea>
-            <button type="button" class="secondary-btn btn-sm" id="parseFirebaseJsonBtn">⚡ Auto-Fill Fields</button>
+            <div class="drawer-actions">
+              <button type="button" class="primary-btn btn-sm" id="saveQuickConfigBtn">Save & Connect</button>
+            </div>
           </div>
-
-          <form id="firebaseConfigForm" class="auth-form config-manual-form">
-            <div class="form-row-grid">
-              <div class="form-group">
-                <label for="fbCfgApiKey">apiKey</label>
-                <input type="text" id="fbCfgApiKey" placeholder="AIzaSy..." required>
-              </div>
-              <div class="form-group">
-                <label for="fbCfgProjectId">projectId</label>
-                <input type="text" id="fbCfgProjectId" placeholder="tasker-up-12345" required>
-              </div>
-            </div>
-
-            <div class="form-row-grid">
-              <div class="form-group">
-                <label for="fbCfgAuthDomain">authDomain (optional)</label>
-                <input type="text" id="fbCfgAuthDomain" placeholder="my-app.firebaseapp.com">
-              </div>
-              <div class="form-group">
-                <label for="fbCfgAppId">appId (optional)</label>
-                <input type="text" id="fbCfgAppId" placeholder="1:12345:web:abcde">
-              </div>
-            </div>
-
-            <button type="submit" class="primary-btn w-100" id="saveFirebaseConfigBtn">
-              <span>💾 Save & Initialize Cloud Database</span>
-            </button>
-          </form>
         </div>
       </div>
     </div>
