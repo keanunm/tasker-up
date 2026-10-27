@@ -746,6 +746,8 @@ html, body {
    ========================================================================== */
 .quick-entry-section {
   margin-bottom: 28px;
+  position: relative;
+  z-index: 40;
 }
 .quick-entry-card {
   background: var(--bg-card);
@@ -757,6 +759,7 @@ html, body {
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: visible;
+  z-index: 40;
   transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
 }
 .quick-entry-card:focus-within {
@@ -901,10 +904,15 @@ html, body {
   flex-wrap: wrap;
   gap: 8px;
   position: relative;
+  z-index: 45;
 }
 
 .meta-dropdown-wrap {
   position: relative;
+  z-index: 45;
+}
+.meta-dropdown-wrap:focus-within {
+  z-index: 60;
 }
 
 .meta-chip {
@@ -941,6 +949,7 @@ html, body {
   position: relative;
   display: inline-flex;
   align-items: center;
+  cursor: pointer;
 }
 .meta-date-wrap input[type="date"] {
   position: absolute;
@@ -948,6 +957,22 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+/* Ensure the native calendar icon covers 100% of the chip on PC/Chromium browsers */
+.meta-date-wrap input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   opacity: 0;
   cursor: pointer;
 }
@@ -958,7 +983,7 @@ html, body {
   color: #c7d2fe;
 }
 .meta-date-wrap.has-date input[type="date"] {
-  width: calc(100% - 26px);
+  width: calc(100% - 28px);
 }
 .clear-date-chip-btn {
   position: absolute;
@@ -977,7 +1002,7 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 3;
+  z-index: 5;
   transition: all var(--trans-fast);
 }
 .clear-date-chip-btn:hover {
@@ -1002,15 +1027,15 @@ html, body {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  min-width: 210px;
-  max-height: 240px;
+  min-width: 220px;
+  max-height: 250px;
   overflow-y: auto;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-medium);
+  background: #141928;
+  border: 1px solid rgba(99, 102, 241, 0.45);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
   padding: 6px;
-  z-index: 120;
+  z-index: 100;
   animation: fadeInDown 0.15s ease-out;
 }
 .dropdown-popover.open {
@@ -1080,6 +1105,8 @@ html, body {
   border-bottom: 1px solid var(--border-subtle);
   flex-wrap: wrap;
   gap: 12px;
+  position: relative;
+  z-index: 10;
 }
 
 .active-filters {
@@ -1171,6 +1198,11 @@ html, body {
 /* ==========================================================================
    TASK LIST & TASK ITEM CARD
    ========================================================================== */
+.task-list-section {
+  position: relative;
+  z-index: 1;
+}
+
 .task-list {
   display: flex;
   flex-direction: column;

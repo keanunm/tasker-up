@@ -2093,11 +2093,40 @@
       });
     });
 
-    // Due date picker change
-    dom.entryDueDateInput.addEventListener('change', () => {
+    // PC / Desktop calendar trigger on due date chip
+    const triggerDueDatePicker = () => {
+      if (dom.entryDueDateInput) {
+        if (typeof dom.entryDueDateInput.showPicker === 'function') {
+          try {
+            dom.entryDueDateInput.showPicker();
+            return;
+          } catch (err) {
+            console.debug('showPicker fallback:', err);
+          }
+        }
+        dom.entryDueDateInput.focus();
+      }
+    };
+
+    dom.entryDueDateInput.addEventListener('click', () => {
+      triggerDueDatePicker();
+    });
+
+    const dateChipLabel = dom.metaDateWrap ? dom.metaDateWrap.querySelector('.date-chip') : null;
+    if (dateChipLabel) {
+      dateChipLabel.addEventListener('click', (e) => {
+        e.preventDefault();
+        triggerDueDatePicker();
+      });
+    }
+
+    // Due date picker change & input events
+    const handleDueDateChange = () => {
       state.entry.dueDate = dom.entryDueDateInput.value;
       renderEntryChips();
-    });
+    };
+    dom.entryDueDateInput.addEventListener('change', handleDueDateChange);
+    dom.entryDueDateInput.addEventListener('input', handleDueDateChange);
 
     // Clear Due Date Button in Quick Add
     if (dom.clearEntryDueDateBtn) {
