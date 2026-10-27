@@ -3167,3 +3167,140 @@ html, body {
   filter: brightness(1.15);
   transform: scale(1.05);
 }
+
+
+/* ==========================================================================
+   5. COLLABORATIVE PROJECT SPECIAL COLOR & STYLING
+   Official Special Color: Electric Cyan (#06b6d4 / #22d3ee)
+   ========================================================================== */
+
+:root {
+  --collab-brand: #06b6d4;
+  --collab-brand-light: #22d3ee;
+  --collab-brand-dark: #0891b2;
+  --collab-brand-glow: rgba(6, 182, 212, 0.45);
+  --collab-bg-tint: rgba(6, 182, 212, 0.12);
+  --collab-border-tint: rgba(6, 182, 212, 0.4);
+}
+
+/* Sidebar Collaborative Folder Row */
+.folder-header-row.is-collaborative {
+  border-left: 3.5px solid var(--collab-brand) !important;
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.14) 0%, rgba(6, 182, 212, 0.02) 100%) !important;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  box-shadow: inset 1px 0 8px rgba(6, 182, 212, 0.15);
+}
+
+.folder-header-row.is-collaborative:hover {
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.05) 100%) !important;
+  border-left-color: var(--collab-brand-light) !important;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.25), inset 1px 0 10px rgba(6, 182, 212, 0.2);
+}
+
+.folder-header-row.is-collaborative.active {
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.28) 0%, rgba(6, 182, 212, 0.08) 100%) !important;
+  border-color: rgba(6, 182, 212, 0.6) !important;
+  border-left: 3.5px solid var(--collab-brand-light) !important;
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.35);
+}
+
+.folder-header-row.is-collaborative .folder-badge-icon {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(59, 130, 246, 0.18)) !important;
+  color: #22d3ee !important;
+  border: 1px solid rgba(6, 182, 212, 0.55) !important;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+}
+
+/* Collaborative Badge Pill */
+.collab-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  margin-left: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.collab-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 6px #22d3ee;
+  animation: collabPulse 1.8s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes collabPulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 10px #22d3ee; }
+}
+
+/* Collaborative Main View Header Badge */
+.view-tag.collab-view-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(59, 130, 246, 0.15)) !important;
+  color: #22d3ee !important;
+  border: 1px solid rgba(6, 182, 212, 0.55) !important;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.35);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Quick Add Strip Collaborative Folder Chip */
+.meta-chip-btn.is-collab {
+  border-color: rgba(6, 182, 212, 0.6) !important;
+  color: #22d3ee !important;
+  background: rgba(6, 182, 212, 0.12) !important;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+/* Collaborative Toggle in Folder Modal */
+.collab-toggle-container {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(99, 102, 241, 0.06));
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.collab-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collab-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+
+.collab-slider {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+input:checked + .collab-slider {
+  background: linear-gradient(135deg, #06b6d4, #3b82f6) !important;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+}

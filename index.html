@@ -16,7 +16,7 @@
   <link rel="alternate icon" href="favicon.svg">
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.3">
+  <link rel="stylesheet" href="css/style.css?v=2.4">
 </head>
 <body class="theme-dark">
   <!-- Subtle ambient background glow -->
@@ -426,6 +426,24 @@
           <input type="text" id="folderDescInput" placeholder="Brief note about this project..." maxlength="80" autocomplete="off">
         </div>
 
+        <!-- Collaborative Project Special Color Toggle -->
+        <div class="form-group collab-toggle-container">
+          <div class="collab-toggle-row">
+            <div class="collab-toggle-info">
+              <label class="collab-toggle-label" for="folderIsCollabCheckbox">
+                <span class="collab-pulse-dot"></span>
+                <span>Collaborative Project</span>
+                <span class="collab-badge-pill">SPECIAL COLOR</span>
+              </label>
+              <p class="form-hint">Applies the special cyan collaborative color, enables member invitations, and activates live sync.</p>
+            </div>
+            <label class="switch-control">
+              <input type="checkbox" id="folderIsCollabCheckbox">
+              <span class="switch-slider collab-slider"></span>
+            </label>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Folder Color Theme</label>
           <div class="color-picker-grid" id="folderColorPicker">
@@ -814,7 +832,11 @@
   <!-- MODAL: ACCEPT PROJECT INVITATION -->
   <div class="modal-backdrop" id="acceptInviteModal" role="dialog" aria-modal="true">
     <div class="modal-card modal-card-invite" style="max-width: 460px; text-align: center;">
-      <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+      <div style="font-size: 3rem; margin-bottom: 8px;">🎉</div>
+      <div class="collab-badge-pill" style="display: inline-flex; margin-bottom: 10px;">
+        <span class="collab-pulse-dot"></span>
+        <span>COLLABORATIVE PROJECT</span>
+      </div>
       <h2 class="modal-title" id="acceptProjectTitle">Project Invitation</h2>
       <p class="modal-subtitle" id="acceptProjectDesc" style="margin-top: 6px; margin-bottom: 20px;">
         You have been invited to collaborate on this project on Tasker Up!
@@ -832,6 +854,11 @@
           <span>Role: <strong style="color: #60a5fa;" id="acceptRoleBadge">Member</strong></span>
           <span>•</span>
           <span>Can complete tasks & chat</span>
+        </div>
+
+        <!-- Package contents preview banner -->
+        <div class="accept-pkg-details" id="acceptPkgDetails" style="display: none; background: rgba(6, 182, 212, 0.08); border: 1px dashed rgba(6, 182, 212, 0.35); border-radius: var(--radius-sm); padding: 8px 12px; margin-top: 10px; font-size: 0.8rem; color: #a5f3fc; text-align: left;">
+          <span id="acceptPkgSummary">📦 Includes 0 tasks and 0 categories</span>
         </div>
       </div>
 
@@ -857,7 +884,7 @@
 
   <!-- APPLICATION SCRIPTS -->
   <script src="js/firebase-config.js?v=2.3"></script>
-  <script src="js/cloud-sync.js?v=2.3"></script>
-  <script src="js/app.js?v=2.3"></script>
+  <script src="js/cloud-sync.js?v=2.4"></script>
+  <script src="js/app.js?v=2.4"></script>
 </body>
 </html>

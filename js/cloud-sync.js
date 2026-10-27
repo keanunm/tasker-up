@@ -607,6 +607,83 @@
   }
 
   // ==========================================
+  // 6. COLLABORATIVE SHARED PROJECT SYNC
+  // ==========================================
+  const activeCollabListeners = {};
+
+  async function syncCollaborativeProject(folder, tasks, categories) {
+    if (!db || !folder || !folder.id) return;
+    try {
+      const docRef = db.collection('shared_projects').doc(folder.id);
+      const safeTasks = (tasks || []).map(t => ({
+        id: t.id,
+        title: t.title,
+        notes: t.notes || '',
+        folderId: folder.id,
+        categoryId: t.categoryId || null,
+        priority: t.priority || 'normal',
+        dueDate: t.dueDate || null,
+        completed: !!t.completed,
+        completedAt: t.completedAt || null,
+        completedBy: t.completedBy || null,
+        memberCompleted: !!t.memberCompleted,
+        starred: !!t.starred,
+        createdAt: t.createdAt || Date.now()
+      }));
+
+      const safeCats = (categories || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        color: c.color || '#06b6d4',
+        icon: c.icon || '🏷️',
+        folderId: folder.id
+      }));
+
+      await docRef.set({
+        folder: {
+          id: folder.id,
+          name: folder.name,
+          desc: folder.desc || '',
+          icon: folder.icon || '📁',
+          color: folder.color || '#06b6d4',
+          hostEmail: folder.hostEmail || 'host@taskerup.io',
+          isCollaborative: true,
+          members: folder.members || [],
+          chat: folder.chat || [],
+          updatedAt: Date.now()
+        },
+        tasks: safeTasks,
+        categories: safeCats,
+        updatedAt: Date.now(),
+        updatedBy: currentUser ? (currentUser.displayName || currentUser.email) : 'user'
+      }, { merge: true });
+    } catch (err) {
+      console.warn('syncCollaborativeProject failed', err);
+    }
+  }
+
+  function listenToCollaborativeProject(folderId, callback) {
+    if (!db || !folderId) return null;
+    if (activeCollabListeners[folderId]) {
+      return activeCollabListeners[folderId];
+    }
+    try {
+      const unsub = db.collection('shared_projects').doc(folderId).onSnapshot((doc) => {
+        if (doc && doc.exists) {
+          callback(doc.data());
+        }
+      }, (err) => {
+        console.warn('Collaborative project snapshot error for', folderId, err);
+      });
+      activeCollabListeners[folderId] = unsub;
+      return unsub;
+    } catch (err) {
+      console.warn('listenToCollaborativeProject setup error', err);
+      return null;
+    }
+  }
+
+  // ==========================================
   // EXPORT
   // ==========================================
   window.CloudSync = {
@@ -616,6 +693,8 @@
     queueCloudSave,
     uploadCurrentWorkspaceToCloud,
     openAuthModal,
-    signOut
+    signOut,
+    syncCollaborativeProject,
+    listenToCollaborativeProject
   };
 })();

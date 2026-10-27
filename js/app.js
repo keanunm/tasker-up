@@ -650,6 +650,19 @@
   }
 
 
+  // Official Special Color for Collaborative Projects: Electric Cyan
+  const COLLAB_PROJECT_COLOR = '#06b6d4';
+
+  function isFolderCollaborative(folder) {
+    if (!folder) return false;
+    return !!(
+      folder.isCollaborative ||
+      (folder.members && folder.members.length > 1) ||
+      folder.isJoined ||
+      folder.id === 'folder-alpha'
+    );
+  }
+
   const PRESET_COLORS = [
     '#6366f1', // Indigo
     '#8b5cf6', // Violet
@@ -681,8 +694,9 @@
       id: 'folder-alpha',
       name: 'Website Redesign',
       desc: 'Project Alpha redesign and frontend build',
-      color: '#06b6d4',
+      color: COLLAB_PROJECT_COLOR,
       icon: '💻',
+      isCollaborative: true,
       createdAt: Date.now() - 25000000
     },
     {
@@ -965,8 +979,19 @@
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 
-      if (!skipCloud && window.CloudSync && typeof window.CloudSync.queueCloudSave === 'function') {
-        window.CloudSync.queueCloudSave(payload);
+      if (!skipCloud && window.CloudSync) {
+        if (typeof window.CloudSync.queueCloudSave === 'function') {
+          window.CloudSync.queueCloudSave(payload);
+        }
+        if (typeof window.CloudSync.syncCollaborativeProject === 'function') {
+          state.folders.forEach(f => {
+            if (isFolderCollaborative(f)) {
+              const fTasks = state.tasks.filter(t => t && t.folderId === f.id);
+              const fCats = state.categories.filter(c => c && c.folderId === f.id);
+              window.CloudSync.syncCollaborativeProject(f, fTasks, fCats);
+            }
+          });
+        }
       }
     } catch (e) {
       console.error('Storage write error', e);
@@ -1216,6 +1241,7 @@
     editFolderId: document.getElementById('editFolderId'),
     folderNameInput: document.getElementById('folderNameInput'),
     folderDescInput: document.getElementById('folderDescInput'),
+    folderIsCollabCheckbox: document.getElementById('folderIsCollabCheckbox'),
     folderColorPicker: document.getElementById('folderColorPicker'),
     folderIconPicker: document.getElementById('folderIconPicker'),
 
@@ -1272,6 +1298,8 @@
     acceptHostName: document.getElementById('acceptHostName'),
     acceptRoleBadge: document.getElementById('acceptRoleBadge'),
     acceptMemberNameInput: document.getElementById('acceptMemberNameInput'),
+    acceptPkgDetails: document.getElementById('acceptPkgDetails'),
+    acceptPkgSummary: document.getElementById('acceptPkgSummary'),
     confirmAcceptInviteBtn: document.getElementById('confirmAcceptInviteBtn'),
     declineInviteBtn: document.getElementById('declineInviteBtn'),
 
@@ -1396,13 +1424,14 @@
       const group = document.createElement('div');
       group.className = `folder-group ${isCollapsed ? 'collapsed' : ''}`;
 
-      const folderColor = folder.color || '#6366f1';
+      const isCollab = isFolderCollaborative(folder);
+      const folderColor = isCollab ? COLLAB_PROJECT_COLOR : (folder.color || '#6366f1');
       const folderName = folder.name || 'Unnamed Folder';
       const folderIcon = folder.icon || '📁';
 
-      // 1. Folder Header Row with Member Activity Glow
+      // 1. Folder Header Row with Member Activity Glow & Special Collaborative Color
       const headerRow = document.createElement('div');
-      headerRow.className = `folder-header-row ${isFolderActive ? 'active' : ''} ${hasMemberActivity ? 'member-completed-glow' : ''}`;
+      headerRow.className = `folder-header-row ${isFolderActive ? 'active' : ''} ${isCollab ? 'is-collaborative' : ''} ${hasMemberActivity ? 'member-completed-glow' : ''}`;
       headerRow.innerHTML = `
         <div class="folder-item-left" style="display: flex; align-items: center; flex: 1; min-width: 0;">
           <button class="folder-toggle-btn" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
@@ -1412,6 +1441,7 @@
             ${folderIcon}
           </span>
           <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(folderName)}</span>
+          ${isCollab ? '<span class="collab-badge-pill" title="Collaborative Project (Special Color)"><span class="collab-pulse-dot"></span>COLLAB</span>' : ''}
           ${hasMemberActivity ? '<span class="folder-glow-indicator" title="Member completed a task in this project!"></span>' : ''}
         </div>
         <span class="nav-count">${folderTasks.length}</span>
@@ -1628,9 +1658,10 @@
       const folder = state.folders.find(f => f.id === state.activeView.id);
       if (folder) {
         ensureFolderCollaboration(folder);
-        badge = `Project: ${folder.icon}`;
+        const isCollab = isFolderCollaborative(folder);
+        badge = isCollab ? 'COLLABORATIVE PROJECT' : `Project: ${folder.icon}`;
         title = folder.name;
-        desc = folder.desc || `All tasks assigned to project ${folder.name}`;
+        desc = folder.desc || (isCollab ? `Shared collaborative project • ${folder.members.length} members` : `All tasks assigned to project ${folder.name}`);
 
         if (dom.projectCollabHeaderActions) {
           dom.projectCollabHeaderActions.style.display = 'inline-flex';
@@ -1673,7 +1704,13 @@
       }
     }
 
-    dom.currentViewBadge.textContent = badge;
+    if (state.activeView.type === 'folder' && isFolderCollaborative(state.folders.find(f => f.id === state.activeView.id))) {
+      dom.currentViewBadge.className = 'view-tag collab-view-badge';
+      dom.currentViewBadge.innerHTML = '<span class="collab-pulse-dot"></span><span>COLLABORATIVE PROJECT</span>';
+    } else {
+      dom.currentViewBadge.className = 'view-tag';
+      dom.currentViewBadge.textContent = badge;
+    }
     dom.currentViewTitle.textContent = title;
     dom.currentViewDescription.textContent = desc;
 
@@ -1733,9 +1770,12 @@
     // 1. Folder Chip
     const activeFolder = state.folders.find(f => f.id === state.entry.folderId);
     if (activeFolder) {
+      const isCollab = isFolderCollaborative(activeFolder);
+      if (dom.entryFolderBtn) dom.entryFolderBtn.classList.toggle('is-collab', isCollab);
       dom.entryFolderIcon.textContent = activeFolder.icon || '📁';
-      dom.entryFolderLabel.textContent = `${t('folder_prefix')}${activeFolder.name}`;
+      dom.entryFolderLabel.textContent = `${t('folder_prefix')}${activeFolder.name}${isCollab ? ' (👥)' : ''}`;
     } else {
+      if (dom.entryFolderBtn) dom.entryFolderBtn.classList.remove('is-collab');
       state.entry.folderId = '';
       dom.entryFolderIcon.textContent = '📂';
       dom.entryFolderLabel.textContent = t('no_folder');
@@ -2546,12 +2586,24 @@
   function openFolderModal(existingFolder = null) {
     initFolderModalUI();
 
+    const isCollab = existingFolder ? isFolderCollaborative(existingFolder) : false;
+    if (dom.folderIsCollabCheckbox) {
+      dom.folderIsCollabCheckbox.checked = isCollab;
+      dom.folderIsCollabCheckbox.onchange = (e) => {
+        if (e.target.checked) {
+          selectedModalColor = COLLAB_PROJECT_COLOR;
+          updateFolderModalSwatches();
+          showToast('Special collaborative theme applied (#06b6d4 Electric Cyan)!', 'info');
+        }
+      };
+    }
+
     if (existingFolder) {
       dom.folderModalTitle.textContent = 'Edit Project Folder';
       dom.editFolderId.value = existingFolder.id;
       dom.folderNameInput.value = existingFolder.name;
       dom.folderDescInput.value = existingFolder.desc || '';
-      selectedModalColor = existingFolder.color || PRESET_COLORS[0];
+      selectedModalColor = isCollab ? COLLAB_PROJECT_COLOR : (existingFolder.color || PRESET_COLORS[0]);
       selectedModalIcon = existingFolder.icon || '📁';
     } else {
       dom.folderModalTitle.textContent = 'Create New Project Folder';
@@ -2582,14 +2634,19 @@
     const desc = dom.folderDescInput.value.trim();
     const editId = dom.editFolderId.value;
 
+    const isCollab = dom.folderIsCollabCheckbox ? dom.folderIsCollabCheckbox.checked : false;
+    const finalColor = isCollab ? COLLAB_PROJECT_COLOR : selectedModalColor;
+
     if (editId) {
       // Edit
       const folder = state.folders.find(f => f.id === editId);
       if (folder) {
         folder.name = name;
         folder.desc = desc;
-        folder.color = selectedModalColor;
+        folder.color = finalColor;
         folder.icon = selectedModalIcon;
+        folder.isCollaborative = isCollab;
+        if (isCollab) ensureFolderCollaboration(folder);
         showToast(`Folder "${name}" updated`, 'success');
       }
     } else {
@@ -2598,10 +2655,12 @@
         id: 'folder-' + Date.now(),
         name: name,
         desc: desc,
-        color: selectedModalColor,
+        color: finalColor,
         icon: selectedModalIcon,
+        isCollaborative: isCollab,
         createdAt: Date.now()
       };
+      if (isCollab) ensureFolderCollaboration(newFolder);
       state.folders.push(newFolder);
       state.entry.folderId = newFolder.id; // Set current quick-add folder
       state.activeView = { type: 'folder', id: newFolder.id }; // Switch view to new project
@@ -2831,6 +2890,65 @@
     return { name, email, role };
   }
 
+  function serializeProjectPackage(folder) {
+    if (!folder) return '';
+    try {
+      const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
+      const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+
+      const payload = {
+        f: {
+          id: folder.id,
+          name: folder.name,
+          desc: folder.desc || '',
+          icon: folder.icon || '📁',
+          color: COLLAB_PROJECT_COLOR,
+          host: folder.hostEmail || 'host@taskerup.io',
+          collab: true
+        },
+        c: childCategories.map(c => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          icon: c.icon
+        })),
+        t: childTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          notes: t.notes || '',
+          catId: t.categoryId || null,
+          priority: t.priority || 'normal',
+          dueDate: t.dueDate || null,
+          completed: !!t.completed,
+          completedAt: t.completedAt || null,
+          completedBy: t.completedBy || null,
+          memberCompleted: !!t.memberCompleted,
+          starred: !!t.starred
+        })),
+        chat: (folder.chat || []).slice(-15)
+      };
+
+      const json = JSON.stringify(payload);
+      return btoa(encodeURIComponent(json));
+    } catch (e) {
+      console.error('Failed to serialize project package', e);
+      return '';
+    }
+  }
+
+  function deserializeProjectPackage(pkgStr) {
+    if (!pkgStr) return null;
+    try {
+      const json = decodeURIComponent(atob(pkgStr));
+      const payload = JSON.parse(json);
+      if (!payload || !payload.f) return null;
+      return payload;
+    } catch (e) {
+      console.error('Failed to deserialize project package', e);
+      return null;
+    }
+  }
+
   function generateProjectInviteLink(folder, role = 'member') {
     if (!folder) return window.location.href;
     const base = window.location.origin + window.location.pathname;
@@ -2838,15 +2956,36 @@
     params.set('join', folder.id);
     params.set('name', folder.name);
     params.set('icon', folder.icon || '📁');
+    params.set('color', COLLAB_PROJECT_COLOR);
     params.set('role', role);
     if (folder.hostEmail) params.set('host', folder.hostEmail);
+
+    const pkg = serializeProjectPackage(folder);
+    if (pkg) {
+      params.set('pkg', pkg);
+    }
+
+    // Sync to cloud Firestore if available
+    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+      const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+      const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
+      window.CloudSync.syncCollaborativeProject(folder, childTasks, childCategories);
+    }
+
     return `${base}?${params.toString()}`;
   }
 
   function ensureFolderCollaboration(folder) {
     if (!folder) return;
-    if (!folder.color) folder.color = '#6366f1';
     if (!folder.name) folder.name = 'Unnamed Folder';
+    if (folder.isCollaborative === undefined) {
+      folder.isCollaborative = (folder.id === 'folder-alpha' || (folder.members && folder.members.length > 1) || !!folder.isJoined);
+    }
+    if (isFolderCollaborative(folder)) {
+      folder.color = COLLAB_PROJECT_COLOR;
+    } else if (!folder.color) {
+      folder.color = '#6366f1';
+    }
     if (!folder.hostEmail) {
       const curUser = window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser();
       folder.hostEmail = (curUser && curUser.email) || 'host@taskerup.io';
@@ -2899,8 +3038,13 @@
     if (!folder) folder = getActiveFolder();
     if (!folder) return;
 
+    // Automatically mark folder as collaborative & apply special color
+    folder.isCollaborative = true;
+    folder.color = COLLAB_PROJECT_COLOR;
     state.activeCollabFolderId = folder.id;
     ensureFolderCollaboration(folder);
+    saveState();
+    renderAll();
 
     if (dom.inviteModalTitle) {
       dom.inviteModalTitle.textContent = `Project Collaborators: ${folder.name}`;
@@ -3219,16 +3363,20 @@
     const folderIcon = params.get('icon') || '📁';
     const folderRole = params.get('role') || 'member';
     const hostEmail = params.get('host') || 'Host';
+    const pkgStr = params.get('pkg');
+    const projectPkg = deserializeProjectPackage(pkgStr);
 
     let folder = state.folders.find(f => f.id === joinFolderId);
     if (!folder) {
       folder = {
         id: joinFolderId,
-        name: folderName,
-        icon: folderIcon,
-        color: '#6366f1',
-        desc: `Shared project invited by ${hostEmail}`,
-        hostEmail: hostEmail,
+        name: (projectPkg && projectPkg.f && projectPkg.f.name) || folderName,
+        icon: (projectPkg && projectPkg.f && projectPkg.f.icon) || folderIcon,
+        color: COLLAB_PROJECT_COLOR,
+        desc: (projectPkg && projectPkg.f && projectPkg.f.desc) || `Shared project invited by ${hostEmail}`,
+        hostEmail: (projectPkg && projectPkg.f && projectPkg.f.host) || hostEmail,
+        isCollaborative: true,
+        isJoined: true,
         members: [
           {
             id: 'mem-host-' + joinFolderId,
@@ -3239,7 +3387,7 @@
             avatarColor: '#f59e0b'
           }
         ],
-        chat: [
+        chat: (projectPkg && projectPkg.chat) || [
           {
             id: 'msg-' + Date.now(),
             isSystem: true,
@@ -3249,20 +3397,46 @@
         ]
       };
       state.folders.push(folder);
+    } else {
+      folder.isCollaborative = true;
+      folder.color = COLLAB_PROJECT_COLOR;
+      if (projectPkg && projectPkg.f && projectPkg.f.name) {
+        folder.name = projectPkg.f.name;
+      }
     }
 
     ensureFolderCollaboration(folder);
+
+    if (projectPkg && Array.isArray(projectPkg.chat)) {
+      projectPkg.chat.forEach(msg => {
+        if (!folder.chat.some(c => c.id === msg.id)) {
+          folder.chat.push(msg);
+        }
+      });
+    }
 
     const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
     const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
     const defaultEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
 
-    if (dom.acceptProjectTitle) dom.acceptProjectTitle.textContent = `Join "${folderName}"`;
-    if (dom.acceptFolderName) dom.acceptFolderName.textContent = folderName;
-    if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folderIcon;
+    if (dom.acceptProjectTitle) dom.acceptProjectTitle.textContent = `Join "${folder.name}"`;
+    if (dom.acceptFolderName) dom.acceptFolderName.textContent = folder.name;
+    if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folder.icon;
     if (dom.acceptHostName) dom.acceptHostName.textContent = `Invited by ${hostEmail}`;
     if (dom.acceptRoleBadge) dom.acceptRoleBadge.textContent = folderRole === 'viewer' ? 'Viewer' : 'Member';
     if (dom.acceptMemberNameInput) dom.acceptMemberNameInput.value = defaultName;
+
+    // Display package summary if available
+    const taskCount = (projectPkg && projectPkg.t) ? projectPkg.t.length : 0;
+    const catCount = (projectPkg && projectPkg.c) ? projectPkg.c.length : 0;
+    if (dom.acceptPkgDetails && dom.acceptPkgSummary) {
+      if (taskCount > 0 || catCount > 0) {
+        dom.acceptPkgDetails.style.display = 'block';
+        dom.acceptPkgSummary.textContent = `📦 Includes ${taskCount} ${taskCount === 1 ? 'task' : 'tasks'} & ${catCount} ${catCount === 1 ? 'category' : 'categories'}`;
+      } else {
+        dom.acceptPkgDetails.style.display = 'none';
+      }
+    }
 
     if (dom.acceptInviteModal) {
       dom.acceptInviteModal.classList.add('open');
@@ -3293,17 +3467,74 @@
           });
         }
 
+        // IMPORT CATEGORIES from project package
+        if (projectPkg && Array.isArray(projectPkg.c)) {
+          projectPkg.c.forEach(cat => {
+            const existingCat = state.categories.find(c => c.id === cat.id);
+            if (!existingCat) {
+              state.categories.push({
+                id: cat.id,
+                name: cat.name,
+                color: cat.color || COLLAB_PROJECT_COLOR,
+                icon: cat.icon || '🏷️',
+                folderId: folder.id
+              });
+            } else {
+              existingCat.folderId = folder.id;
+            }
+          });
+        }
+
+        // IMPORT TASKS from project package
+        if (projectPkg && Array.isArray(projectPkg.t)) {
+          projectPkg.t.forEach(t => {
+            const existingTask = state.tasks.find(x => x.id === t.id);
+            if (!existingTask) {
+              state.tasks.push({
+                id: t.id,
+                title: t.title,
+                notes: t.notes || '',
+                folderId: folder.id,
+                categoryId: t.catId || null,
+                priority: t.priority || 'normal',
+                dueDate: t.dueDate || null,
+                completed: !!t.completed,
+                completedAt: t.completedAt || null,
+                completedBy: t.completedBy || null,
+                memberCompleted: !!t.memberCompleted,
+                starred: !!t.starred,
+                createdAt: Date.now()
+              });
+            } else {
+              existingTask.folderId = folder.id;
+              existingTask.completed = !!t.completed;
+              existingTask.memberCompleted = !!t.memberCompleted;
+            }
+          });
+        }
+
         localStorage.setItem('tasker_user_name', memberName);
         localStorage.setItem('tasker_user_email', memberEmail);
         localStorage.setItem('tasker_user_role', folderRole);
 
+        folder.isCollaborative = true;
+        folder.color = COLLAB_PROJECT_COLOR;
+
         state.activeView = { type: 'folder', id: folder.id };
         state.entry.folderId = folder.id;
+
         saveState();
         renderAll();
 
+        // Connect cloud listener for real-time collaboration if available
+        if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
+          window.CloudSync.listenToCollaborativeProject(folder.id, (cloudData) => {
+            handleSharedProjectIncomingSync(folder.id, cloudData);
+          });
+        }
+
         if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
-        showToast(`🎉 You joined "${folderName}" as ${folderRole}!`, 'success');
+        showToast(`🎉 You joined "${folder.name}" with ${taskCount} tasks!`, 'success');
         SoundFX.complete();
 
         const cleanUrl = window.location.origin + window.location.pathname;
@@ -3320,7 +3551,45 @@
     }
   }
 
-  // ==========================================
+  function handleSharedProjectIncomingSync(folderId, cloudData) {
+    if (!cloudData || !folderId) return;
+    const folder = state.folders.find(f => f.id === folderId);
+    if (!folder) return;
+
+    if (cloudData.folder) {
+      if (cloudData.folder.name) folder.name = cloudData.folder.name;
+      if (cloudData.folder.members) folder.members = cloudData.folder.members;
+      if (cloudData.folder.chat) folder.chat = cloudData.folder.chat;
+    }
+
+    if (Array.isArray(cloudData.tasks)) {
+      cloudData.tasks.forEach(remoteTask => {
+        const localTask = state.tasks.find(t => t.id === remoteTask.id);
+        if (localTask) {
+          localTask.title = remoteTask.title;
+          localTask.completed = !!remoteTask.completed;
+          localTask.completedAt = remoteTask.completedAt;
+          localTask.completedBy = remoteTask.completedBy;
+          localTask.memberCompleted = !!remoteTask.memberCompleted;
+        } else {
+          state.tasks.push(remoteTask);
+        }
+      });
+    }
+
+    if (Array.isArray(cloudData.categories)) {
+      cloudData.categories.forEach(remoteCat => {
+        const localCat = state.categories.find(c => c.id === remoteCat.id);
+        if (!localCat) {
+          state.categories.push(remoteCat);
+        }
+      });
+    }
+
+    saveState(true);
+    renderAll();
+  }
+
   // ==========================================
   // 14. SETTINGS & PREFERENCES MODAL
   // ==========================================
@@ -3852,6 +4121,17 @@
     bindEventListeners();
     applyTranslations();
     renderAll();
+
+    // Attach real-time cloud listeners for all collaborative projects
+    if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
+      state.folders.forEach(f => {
+        if (isFolderCollaborative(f)) {
+          window.CloudSync.listenToCollaborativeProject(f.id, (cloudData) => {
+            handleSharedProjectIncomingSync(f.id, cloudData);
+          });
+        }
+      });
+    }
   }
 
   // Boot on DOM ready
