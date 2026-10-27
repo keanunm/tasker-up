@@ -574,35 +574,29 @@ html, body {
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle);
 }
-.sound-toggle-wrap {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.toggle-btn {
+/* Sidebar Footer Settings Button */
+.sidebar-settings-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-muted);
-  padding: 8px 10px;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 500;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
   transition: all var(--trans-fast);
 }
-.toggle-btn:hover {
+.sidebar-settings-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--text-main);
   border-color: var(--border-medium);
 }
-.toggle-btn.active {
-  border-color: var(--accent-primary);
-  background: rgba(99, 102, 241, 0.12);
-  color: #fff;
+.sidebar-settings-btn .settings-gear-icon {
+  font-size: 1.05rem;
 }
 
 /* ==========================================================================
@@ -2282,3 +2276,189 @@ html, body {
   color: var(--accent-amber);
 }
 
+
+/* Topbar Settings Button */
+.topbar-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  white-space: nowrap;
+}
+.topbar-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+.topbar-settings-btn .settings-gear-icon {
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   SETTINGS MODAL & CONTROLS
+   ========================================================================== */
+.modal-card-settings {
+  max-width: 520px;
+  width: 100%;
+}
+
+.settings-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.settings-header-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+}
+
+.settings-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 18px;
+  margin-bottom: 20px;
+}
+
+.settings-section {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color var(--trans-fast);
+}
+.settings-section:hover {
+  border-color: var(--border-medium);
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.settings-section-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.settings-section-meta {
+  flex: 1;
+}
+.settings-section-title {
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 3px;
+}
+.settings-section-desc {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.settings-control-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 36px;
+}
+
+.settings-select {
+  width: 100%;
+  max-width: 260px;
+  padding: 8px 32px 8px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+/* Modern iOS/Material slider toggle switch */
+.settings-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.settings-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.settings-switch .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.12);
+  transition: all var(--trans-fast);
+  border-radius: 26px;
+  border: 1px solid var(--border-subtle);
+}
+.settings-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #cbd5e1;
+  transition: all var(--trans-fast);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.settings-switch input:checked + .slider {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+.settings-switch input:checked + .slider:before {
+  transform: translateX(22px);
+  background-color: #fff;
+}
+.settings-toggle-status {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.settings-backup-grid {
+  padding-left: 36px;
+  gap: 8px;
+}
+
+.settings-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.settings-footer-info {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}

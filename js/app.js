@@ -12,6 +12,643 @@
   // ==========================================
   const STORAGE_KEY = 'tasker_up_state_v2';
   const SOUND_KEY = 'tasker_up_sound_enabled';
+  const LANG_KEY = 'tasker_up_language_v1';
+
+  const TRANSLATIONS = {
+    en: {
+      views_header: 'Views',
+      view_all: 'All Tasks',
+      view_today: 'Today',
+      view_important: 'Important',
+      view_completed: 'Completed',
+      view_unassigned: 'No Folder',
+      projects_categories: 'Projects & Categories',
+      btn_new_category: '+ Category',
+      btn_new_folder: '+ Folder',
+      btn_settings: 'Settings',
+      search_placeholder: 'Filter tasks, #tag, or @folder...',
+      stat_done: 'done',
+      fast_message_add: 'Fast Message Add',
+      input_placeholder: "Write a message to add to tasks... (e.g. 'Review client proposal #Work @Alpha !high ^tomorrow')",
+      btn_add_task: 'Add Task',
+      folder_prefix: 'Folder: ',
+      no_folder: 'No Folder',
+      no_category: 'No Category',
+      priority_prefix: 'Priority: ',
+      no_due_date: 'No Due Date',
+      date_today: 'Today',
+      date_tomorrow: 'Tomorrow',
+      date_yesterday: 'Yesterday',
+      sort_by: 'Sort by:',
+      sort_newest: 'Newest First',
+      sort_oldest: 'Oldest First',
+      sort_priority: 'Priority (High to Low)',
+      sort_due: 'Due Date (Earliest)',
+      sort_title: 'Alphabetical (A-Z)',
+      tab_all: 'All',
+      tab_active: 'Active',
+      tab_completed: 'Completed',
+      empty_title: 'No tasks found',
+      empty_desc: 'Try relaxing your filter, search query, or write a new task above.',
+      btn_write_task: 'Write a Task',
+      prio_urgent: 'Urgent',
+      prio_normal: 'Normal',
+      prio_low: 'Low',
+      general_categories: 'General Categories (No Folder)',
+      add_category_inside: '+ Add Category',
+      settings_title: 'Settings & Preferences',
+      settings_subtitle: 'Customize language, audio feedback, and manage backups',
+      sec_language: 'Language',
+      sec_language_desc: 'Choose your preferred display language',
+      sec_sound: 'Sound Effects',
+      sec_sound_desc: 'Play audio feedback when adding, completing, or removing tasks',
+      sound_enabled: 'Enabled',
+      sound_muted: 'Muted (Off)',
+      sec_backup: 'Data Backup & Restore',
+      sec_backup_desc: 'Export your tasks to a JSON file or restore from a previous backup',
+      btn_export: '📥 Export Workspace (JSON)',
+      btn_import: '📤 Import Workspace (JSON)',
+      btn_reset: '🔄 Reload Sample Tasks',
+      btn_done: 'Done',
+      modal_cat_new: 'Create New Category',
+      modal_cat_edit: 'Edit Category',
+      modal_cat_name: 'Category Name',
+      modal_cat_folder: 'Folder (Included Inside)',
+      modal_cat_color: 'Select Accent Color',
+      modal_cat_icon: 'Select Icon',
+      modal_cat_preview: 'Preview Badge',
+      modal_folder_new: 'Create New Project Folder',
+      modal_folder_edit: 'Edit Project Folder',
+      modal_folder_name: 'Folder Name',
+      modal_folder_desc: 'Short Description',
+      modal_task_edit: 'Edit Task Details',
+      modal_task_title: 'Task Title',
+      modal_task_notes: 'Notes / Context',
+      modal_task_folder: 'Folder (Project)',
+      modal_task_category: 'Category',
+      modal_task_priority: 'Priority',
+      modal_task_due: 'Due Date',
+      modal_task_completed: 'Completed Status',
+      modal_task_completed_date: 'Date & Time Completed',
+      btn_delete_task: 'Delete Task',
+      btn_save_changes: 'Save Changes',
+      btn_cancel: 'Cancel',
+      toast_task_added: 'Task added to your workspace!',
+      toast_task_completed: 'Completed: ',
+      toast_task_deleted: 'Task deleted',
+      toast_sound_on: 'Audio feedback turned ON',
+      toast_sound_off: 'Audio muted',
+      toast_lang_changed: 'Language updated'
+    },
+    es: {
+      views_header: 'Vistas',
+      view_all: 'Todas las tareas',
+      view_today: 'Hoy',
+      view_important: 'Importante',
+      view_completed: 'Completadas',
+      view_unassigned: 'Sin carpeta',
+      projects_categories: 'Proyectos y Categorías',
+      btn_new_category: '+ Categoría',
+      btn_new_folder: '+ Carpeta',
+      btn_settings: 'Ajustes',
+      search_placeholder: 'Filtrar tareas, #etiqueta o @carpeta...',
+      stat_done: 'completadas',
+      fast_message_add: 'Añadir Mensaje Rápido',
+      input_placeholder: "Escribe un mensaje para añadir... (ej. 'Revisar informe #Trabajo @Alpha !high ^tomorrow')",
+      btn_add_task: 'Añadir Tarea',
+      folder_prefix: 'Carpeta: ',
+      no_folder: 'Sin carpeta',
+      no_category: 'Sin categoría',
+      priority_prefix: 'Prioridad: ',
+      no_due_date: 'Sin fecha',
+      date_today: 'Hoy',
+      date_tomorrow: 'Mañana',
+      date_yesterday: 'Ayer',
+      sort_by: 'Ordenar por:',
+      sort_newest: 'Más recientes',
+      sort_oldest: 'Más antiguas',
+      sort_priority: 'Prioridad (Mayor a menor)',
+      sort_due: 'Fecha (Más cercana)',
+      sort_title: 'Alfabético (A-Z)',
+      tab_all: 'Todas',
+      tab_active: 'Activas',
+      tab_completed: 'Completadas',
+      empty_title: 'No se encontraron tareas',
+      empty_desc: 'Prueba cambiando los filtros o escribe una nueva tarea arriba.',
+      btn_write_task: 'Escribir una tarea',
+      prio_urgent: 'Urgente',
+      prio_normal: 'Normal',
+      prio_low: 'Baja',
+      general_categories: 'Categorías Generales (Sin carpeta)',
+      add_category_inside: '+ Añadir Categoría',
+      settings_title: 'Ajustes y Preferencias',
+      settings_subtitle: 'Idioma, efectos de sonido y copias de seguridad',
+      sec_language: 'Idioma',
+      sec_language_desc: 'Elige tu idioma de visualización',
+      sec_sound: 'Efectos de Sonido',
+      sec_sound_desc: 'Reproducir sonidos al interactuar y completar tareas',
+      sound_enabled: 'Activado',
+      sound_muted: 'Silenciado (Desactivado)',
+      sec_backup: 'Copia de Seguridad y Restauración',
+      sec_backup_desc: 'Exporta tus tareas en JSON o restaura una copia previa',
+      btn_export: '📥 Exportar Espacio (JSON)',
+      btn_import: '📤 Importar Espacio (JSON)',
+      btn_reset: '🔄 Recargar Tareas de Muestra',
+      btn_done: 'Listo',
+      modal_cat_new: 'Crear Nueva Categoría',
+      modal_cat_edit: 'Editar Categoría',
+      modal_cat_name: 'Nombre de Categoría',
+      modal_cat_folder: 'Carpeta (Incluida dentro)',
+      modal_cat_color: 'Color de Acento',
+      modal_cat_icon: 'Icono',
+      modal_cat_preview: 'Vista Previa',
+      modal_folder_new: 'Crear Carpeta de Proyecto',
+      modal_folder_edit: 'Editar Carpeta de Proyecto',
+      modal_folder_name: 'Nombre de Carpeta',
+      modal_folder_desc: 'Descripción Corta',
+      modal_task_edit: 'Detalles de la Tarea',
+      modal_task_title: 'Título de la Tarea',
+      modal_task_notes: 'Notas / Contexto',
+      modal_task_folder: 'Carpeta (Proyecto)',
+      modal_task_category: 'Categoría',
+      modal_task_priority: 'Prioridad',
+      modal_task_due: 'Fecha de Vencimiento',
+      modal_task_completed: 'Estado Completado',
+      modal_task_completed_date: 'Fecha y Hora de Finalización',
+      btn_delete_task: 'Eliminar Tarea',
+      btn_save_changes: 'Guardar Cambios',
+      btn_cancel: 'Cancelar',
+      toast_task_added: '¡Tarea añadida a tu espacio!',
+      toast_task_completed: 'Completada: ',
+      toast_task_deleted: 'Tarea eliminada',
+      toast_sound_on: 'Sonidos activados',
+      toast_sound_off: 'Sonidos silenciados',
+      toast_lang_changed: 'Idioma actualizado'
+    },
+    fr: {
+      views_header: 'Vues',
+      view_all: 'Toutes les tâches',
+      view_today: "Aujourd'hui",
+      view_important: 'Important',
+      view_completed: 'Terminées',
+      view_unassigned: 'Sans dossier',
+      projects_categories: 'Projets & Catégories',
+      btn_new_category: '+ Catégorie',
+      btn_new_folder: '+ Dossier',
+      btn_settings: 'Paramètres',
+      search_placeholder: 'Filtrer tâches, #tag ou @dossier...',
+      stat_done: 'faites',
+      fast_message_add: 'Ajout Rapide de Message',
+      input_placeholder: "Écrivez un message pour créer une tâche... (ex. 'Contrat #Travail @Alpha !high ^tomorrow')",
+      btn_add_task: 'Ajouter Tâche',
+      folder_prefix: 'Dossier : ',
+      no_folder: 'Sans dossier',
+      no_category: 'Sans catégorie',
+      priority_prefix: 'Priorité : ',
+      no_due_date: 'Aucune date',
+      date_today: "Aujourd'hui",
+      date_tomorrow: 'Demain',
+      date_yesterday: 'Hier',
+      sort_by: 'Trier par :',
+      sort_newest: 'Plus récents',
+      sort_oldest: 'Plus anciens',
+      sort_priority: 'Priorité (Élevée à faible)',
+      sort_due: 'Échéance (Prochaine)',
+      sort_title: 'Alphabétique (A-Z)',
+      tab_all: 'Toutes',
+      tab_active: 'Actives',
+      tab_completed: 'Terminées',
+      empty_title: 'Aucune tâche trouvée',
+      empty_desc: 'Modifiez vos filtres ou écrivez une nouvelle tâche.',
+      btn_write_task: 'Écrire une tâche',
+      prio_urgent: 'Urgent',
+      prio_normal: 'Normal',
+      prio_low: 'Basse',
+      general_categories: 'Catégories Générales (Sans dossier)',
+      add_category_inside: '+ Ajouter Catégorie',
+      settings_title: 'Paramètres & Préférences',
+      settings_subtitle: 'Langue, retour audio et sauvegardes',
+      sec_language: 'Langue',
+      sec_language_desc: 'Choisissez votre langue d’affichage',
+      sec_sound: 'Effets Sonores',
+      sec_sound_desc: 'Activer les sons de confirmation et alertes',
+      sound_enabled: 'Activé',
+      sound_muted: 'Muet (Désactivé)',
+      sec_backup: 'Sauvegarde & Restauration',
+      sec_backup_desc: 'Exportez vos tâches en JSON ou restaurez un fichier',
+      btn_export: '📥 Exporter l’Espace (JSON)',
+      btn_import: '📤 Importer l’Espace (JSON)',
+      btn_reset: '🔄 Réinitialiser Données Témoins',
+      btn_done: 'Terminé',
+      modal_cat_new: 'Nouvelle Catégorie',
+      modal_cat_edit: 'Modifier Catégorie',
+      modal_cat_name: 'Nom de la Catégorie',
+      modal_cat_folder: 'Dossier (Inclus dans)',
+      modal_cat_color: 'Couleur d’Accent',
+      modal_cat_icon: 'Icône',
+      modal_cat_preview: 'Aperçu du Badge',
+      modal_folder_new: 'Nouveau Dossier Projet',
+      modal_folder_edit: 'Modifier Dossier Projet',
+      modal_folder_name: 'Nom du Dossier',
+      modal_folder_desc: 'Courte Description',
+      modal_task_edit: 'Détails de la Tâche',
+      modal_task_title: 'Titre de la Tâche',
+      modal_task_notes: 'Notes / Contexte',
+      modal_task_folder: 'Dossier (Projet)',
+      modal_task_category: 'Catégorie',
+      modal_task_priority: 'Priorité',
+      modal_task_due: 'Date d’Échéance',
+      modal_task_completed: 'Statut Terminé',
+      modal_task_completed_date: 'Date et Heure de Réalisation',
+      btn_delete_task: 'Supprimer Tâche',
+      btn_save_changes: 'Enregistrer',
+      btn_cancel: 'Annuler',
+      toast_task_added: 'Tâche ajoutée à votre espace !',
+      toast_task_completed: 'Terminée : ',
+      toast_task_deleted: 'Tâche supprimée',
+      toast_sound_on: 'Effets audio activés',
+      toast_sound_off: 'Audio coupé',
+      toast_lang_changed: 'Langue mise à jour'
+    },
+    de: {
+      views_header: 'Ansichten',
+      view_all: 'Alle Aufgaben',
+      view_today: 'Heute',
+      view_important: 'Wichtig',
+      view_completed: 'Erledigt',
+      view_unassigned: 'Kein Ordner',
+      projects_categories: 'Projekte & Kategorien',
+      btn_new_category: '+ Kategorie',
+      btn_new_folder: '+ Ordner',
+      btn_settings: 'Einstellungen',
+      search_placeholder: 'Aufgaben filtern, #Tag oder @Ordner...',
+      stat_done: 'erledigt',
+      fast_message_add: 'Schnelleingabe',
+      input_placeholder: "Nachricht eingeben... (z.B. 'Bericht prüfen #Arbeit @Alpha !high ^tomorrow')",
+      btn_add_task: 'Aufgabe Hinzufügen',
+      folder_prefix: 'Ordner: ',
+      no_folder: 'Kein Ordner',
+      no_category: 'Keine Kategorie',
+      priority_prefix: 'Priorität: ',
+      no_due_date: 'Kein Datum',
+      date_today: 'Heute',
+      date_tomorrow: 'Morgen',
+      date_yesterday: 'Gestern',
+      sort_by: 'Sortieren nach:',
+      sort_newest: 'Neueste zuerst',
+      sort_oldest: 'Älteste zuerst',
+      sort_priority: 'Priorität (Hoch nach Niedrig)',
+      sort_due: 'Fälligkeit (Früheste)',
+      sort_title: 'Alphabetisch (A-Z)',
+      tab_all: 'Alle',
+      tab_active: 'Aktiv',
+      tab_completed: 'Erledigt',
+      empty_title: 'Keine Aufgaben gefunden',
+      empty_desc: 'Passe deine Filter an oder erstelle oben eine neue Aufgabe.',
+      btn_write_task: 'Aufgabe schreiben',
+      prio_urgent: 'Dringend',
+      prio_normal: 'Normal',
+      prio_low: 'Niedrig',
+      general_categories: 'Allgemeine Kategorien (Kein Ordner)',
+      add_category_inside: '+ Kategorie Hinzufügen',
+      settings_title: 'Einstellungen & Präferenzen',
+      settings_subtitle: 'Sprache, Töne und Datensicherung',
+      sec_language: 'Sprache',
+      sec_language_desc: 'Wähle deine bevorzugte Anzeigesprache',
+      sec_sound: 'Soundeffekte',
+      sec_sound_desc: 'Audiorückmeldung bei Aufgabenaktionen abspielen',
+      sound_enabled: 'Aktiviert',
+      sound_muted: 'Stummgeschaltet (Aus)',
+      sec_backup: 'Datensicherung & Wiederherstellung',
+      sec_backup_desc: 'Exportiere deinen Arbeitsbereich als JSON oder stelle Daten wieder her',
+      btn_export: '📥 Arbeitsbereich Exportieren (JSON)',
+      btn_import: '📤 Arbeitsbereich Importieren (JSON)',
+      btn_reset: '🔄 Beispieldaten Laden',
+      btn_done: 'Fertig',
+      modal_cat_new: 'Neue Kategorie erstellen',
+      modal_cat_edit: 'Kategorie bearbeiten',
+      modal_cat_name: 'Kategoriename',
+      modal_cat_folder: 'Ordner (Enthalten in)',
+      modal_cat_color: 'Akzentfarbe wählen',
+      modal_cat_icon: 'Icon wählen',
+      modal_cat_preview: 'Vorschau-Badge',
+      modal_folder_new: 'Neuen Projektordner erstellen',
+      modal_folder_edit: 'Projektordner bearbeiten',
+      modal_folder_name: 'Ordnername',
+      modal_folder_desc: 'Kurzbeschreibung',
+      modal_task_edit: 'Aufgabendetails bearbeiten',
+      modal_task_title: 'Aufgabentitel',
+      modal_task_notes: 'Notizen / Kontext',
+      modal_task_folder: 'Ordner (Projekt)',
+      modal_task_category: 'Kategorie',
+      modal_task_priority: 'Priorität',
+      modal_task_due: 'Fälligkeitsdatum',
+      modal_task_completed: 'Erledigt-Status',
+      modal_task_completed_date: 'Erledigt am',
+      btn_delete_task: 'Aufgabe löschen',
+      btn_save_changes: 'Änderungen speichern',
+      btn_cancel: 'Abbrechen',
+      toast_task_added: 'Aufgabe hinzugefügt!',
+      toast_task_completed: 'Erledigt: ',
+      toast_task_deleted: 'Aufgabe gelöscht',
+      toast_sound_on: 'Audio eingeschaltet',
+      toast_sound_off: 'Audio stummgeschaltet',
+      toast_lang_changed: 'Sprache aktualisiert'
+    },
+    ja: {
+      views_header: '表示',
+      view_all: 'すべてのタスク',
+      view_today: '今日',
+      view_important: '重要',
+      view_completed: '完了済み',
+      view_unassigned: 'フォルダなし',
+      projects_categories: 'プロジェクトとカテゴリ',
+      btn_new_category: '+ カテゴリ',
+      btn_new_folder: '+ フォルダ',
+      btn_settings: '設定',
+      search_placeholder: 'タスク、#タグ、@フォルダで検索...',
+      stat_done: '完了',
+      fast_message_add: 'クイックメッセージ追加',
+      input_placeholder: "メッセージを入力してタスクを作成... (例: '資料作成 #仕事 @Alpha !high ^tomorrow')",
+      btn_add_task: 'タスクを追加',
+      folder_prefix: 'フォルダ: ',
+      no_folder: 'フォルダなし',
+      no_category: 'カテゴリなし',
+      priority_prefix: '優先度: ',
+      no_due_date: '期限なし',
+      date_today: '今日',
+      date_tomorrow: '明日',
+      date_yesterday: '昨日',
+      sort_by: '並び順:',
+      sort_newest: '新しい順',
+      sort_oldest: '古い順',
+      sort_priority: '優先度順 (高→低)',
+      sort_due: '期限順 (近い順)',
+      sort_title: '五十音順 (A-Z)',
+      tab_all: 'すべて',
+      tab_active: '未完了',
+      tab_completed: '完了済み',
+      empty_title: 'タスクが見つかりません',
+      empty_desc: '検索条件を変更するか、新しいタスクを追加してください。',
+      btn_write_task: 'タスクを作成',
+      prio_urgent: '緊急',
+      prio_normal: '通常',
+      prio_low: '低',
+      general_categories: '一般カテゴリ (フォルダなし)',
+      add_category_inside: '+ カテゴリ追加',
+      settings_title: '設定 & 環境設定',
+      settings_subtitle: '言語、サウンド、バックアップの管理',
+      sec_language: '言語',
+      sec_language_desc: '表示言語を選択してください',
+      sec_sound: 'サウンド効果',
+      sec_sound_desc: 'タスク作成や完了時の効果音を再生します',
+      sound_enabled: '有効',
+      sound_muted: 'ミュート (無効)',
+      sec_backup: 'データのバックアップ & 復元',
+      sec_backup_desc: 'JSONファイルにエクスポート、または以前のバックアップから復元します',
+      btn_export: '📥 ワークスペースをエクスポート (JSON)',
+      btn_import: '📤 ワークスペースをインポート (JSON)',
+      btn_reset: '🔄 サンプルデータを再読み込み',
+      btn_done: '完了',
+      modal_cat_new: '新しいカテゴリを作成',
+      modal_cat_edit: 'カテゴリを編集',
+      modal_cat_name: 'カテゴリ名',
+      modal_cat_folder: '所属フォルダ',
+      modal_cat_color: 'アクセントカラー',
+      modal_cat_icon: 'アイコン',
+      modal_cat_preview: 'バッジのプレビュー',
+      modal_folder_new: 'プロジェクトフォルダを作成',
+      modal_folder_edit: 'プロジェクトフォルダを編集',
+      modal_folder_name: 'フォルダ名',
+      modal_folder_desc: '説明 (任意)',
+      modal_task_edit: 'タスクの詳細編集',
+      modal_task_title: 'タスク名',
+      modal_task_notes: 'メモ / 詳細',
+      modal_task_folder: 'フォルダ (プロジェクト)',
+      modal_task_category: 'カテゴリ',
+      modal_task_priority: '優先度',
+      modal_task_due: '期限日',
+      modal_task_completed: '完了ステータス',
+      modal_task_completed_date: '完了日時',
+      btn_delete_task: 'タスクを削除',
+      btn_save_changes: '変更を保存',
+      btn_cancel: 'キャンセル',
+      toast_task_added: 'タスクを追加しました！',
+      toast_task_completed: '完了: ',
+      toast_task_deleted: 'タスクを削除しました',
+      toast_sound_on: '効果音をオンにしました',
+      toast_sound_off: '効果音をミュートしました',
+      toast_lang_changed: '言語を変更しました'
+    },
+    zh: {
+      views_header: '视图',
+      view_all: '所有任务',
+      view_today: '今天',
+      view_important: '重要',
+      view_completed: '已完成',
+      view_unassigned: '无文件夹',
+      projects_categories: '项目与分类',
+      btn_new_category: '+ 分类',
+      btn_new_folder: '+ 文件夹',
+      btn_settings: '设置',
+      search_placeholder: '搜索任务、#标签或@文件夹...',
+      stat_done: '完成',
+      fast_message_add: '快速智能添加',
+      input_placeholder: "输入自然语言添加任务... (例如: '审查合同 #工作 @Alpha !high ^tomorrow')",
+      btn_add_task: '添加任务',
+      folder_prefix: '文件夹: ',
+      no_folder: '无文件夹',
+      no_category: '无分类',
+      priority_prefix: '优先级: ',
+      no_due_date: '无截止日期',
+      date_today: '今天',
+      date_tomorrow: '明天',
+      date_yesterday: '昨天',
+      sort_by: '排序:',
+      sort_newest: '最新创建',
+      sort_oldest: '最早创建',
+      sort_priority: '优先级 (由高到低)',
+      sort_due: '截止日期 (最近)',
+      sort_title: '字母顺序 (A-Z)',
+      tab_all: '全部',
+      tab_active: '未完成',
+      tab_completed: '已完成',
+      empty_title: '未找到任务',
+      empty_desc: '请尝试更换筛选条件或在上方添加新任务。',
+      btn_write_task: '创建新任务',
+      prio_urgent: '紧急',
+      prio_normal: '普通',
+      prio_low: '低',
+      general_categories: '常规分类 (无文件夹)',
+      add_category_inside: '+ 添加分类',
+      settings_title: '设置与偏好',
+      settings_subtitle: '管理语言、音效与数据备份',
+      sec_language: '界面语言',
+      sec_language_desc: '选择您偏好的显示语言',
+      sec_sound: '操作音效',
+      sec_sound_desc: '添加、完成或删除任务时播放音频反馈',
+      sound_enabled: '已开启',
+      sound_muted: '已静音 (关闭)',
+      sec_backup: '数据备份与恢复',
+      sec_backup_desc: '导出任务数据至JSON文件，或从备份恢复',
+      btn_export: '📥 导出工作区 (JSON)',
+      btn_import: '📤 导入工作区 (JSON)',
+      btn_reset: '🔄 重置为示例数据',
+      btn_done: '完成',
+      modal_cat_new: '创建新分类',
+      modal_cat_edit: '编辑分类',
+      modal_cat_name: '分类名称',
+      modal_cat_folder: '所属文件夹',
+      modal_cat_color: '强调颜色',
+      modal_cat_icon: '图标',
+      modal_cat_preview: '徽章预览',
+      modal_folder_new: '创建项目文件夹',
+      modal_folder_edit: '编辑项目文件夹',
+      modal_folder_name: '文件夹名称',
+      modal_folder_desc: '简要说明',
+      modal_task_edit: '编辑任务详情',
+      modal_task_title: '任务标题',
+      modal_task_notes: '备注与上下文',
+      modal_task_folder: '文件夹 (项目)',
+      modal_task_category: '分类',
+      modal_task_priority: '优先级',
+      modal_task_due: '截止日期',
+      modal_task_completed: '完成状态',
+      modal_task_completed_date: '完成日期与时间',
+      btn_delete_task: '删除任务',
+      btn_save_changes: '保存更改',
+      btn_cancel: '取消',
+      toast_task_added: '已添加任务到工作区！',
+      toast_task_completed: '已完成: ',
+      toast_task_deleted: '任务已删除',
+      toast_sound_on: '操作音效已开启',
+      toast_sound_off: '操作音效已静音',
+      toast_lang_changed: '语言设置已更新'
+    },
+    pt: {
+      views_header: 'Visualizações',
+      view_all: 'Todas as Tarefas',
+      view_today: 'Hoje',
+      view_important: 'Importante',
+      view_completed: 'Concluídas',
+      view_unassigned: 'Sem Pasta',
+      projects_categories: 'Projetos e Categorias',
+      btn_new_category: '+ Categoria',
+      btn_new_folder: '+ Pasta',
+      btn_settings: 'Configurações',
+      search_placeholder: 'Filtrar tarefas, #tag ou @pasta...',
+      stat_done: 'concluídas',
+      fast_message_add: 'Adição Rápida',
+      input_placeholder: "Digite uma mensagem para criar uma tarefa... (ex: 'Revisar contrato #Trabalho @Alpha !high ^tomorrow')",
+      btn_add_task: 'Adicionar Tarefa',
+      folder_prefix: 'Pasta: ',
+      no_folder: 'Sem pasta',
+      no_category: 'Sem categoria',
+      priority_prefix: 'Prioridade: ',
+      no_due_date: 'Sem prazo',
+      date_today: 'Hoje',
+      date_tomorrow: 'Amanhã',
+      date_yesterday: 'Ontem',
+      sort_by: 'Ordenar por:',
+      sort_newest: 'Mais recentes',
+      sort_oldest: 'Mais antigas',
+      sort_priority: 'Prioridade (Alta para Baixa)',
+      sort_due: 'Prazo (Mais próximo)',
+      sort_title: 'Alfabética (A-Z)',
+      tab_all: 'Todas',
+      tab_active: 'Ativas',
+      tab_completed: 'Concluídas',
+      empty_title: 'Nenhuma tarefa encontrada',
+      empty_desc: 'Ajuste seus filtros ou crie uma nova tarefa acima.',
+      btn_write_task: 'Criar uma tarefa',
+      prio_urgent: 'Urgente',
+      prio_normal: 'Normal',
+      prio_low: 'Baixa',
+      general_categories: 'Categorias Gerais (Sem pasta)',
+      add_category_inside: '+ Adicionar Categoria',
+      settings_title: 'Configurações & Preferências',
+      settings_subtitle: 'Idioma, efeitos sonoros e backups',
+      sec_language: 'Idioma',
+      sec_language_desc: 'Escolha seu idioma de exibição',
+      sec_sound: 'Efeitos Sonoros',
+      sec_sound_desc: 'Tocar sons para cliques e conclusão de tarefas',
+      sound_enabled: 'Ativado',
+      sound_muted: 'Silenciado (Desativado)',
+      sec_backup: 'Backup e Restauração',
+      sec_backup_desc: 'Exporte para arquivo JSON ou restaure um backup',
+      btn_export: '📥 Exportar Espaço (JSON)',
+      btn_import: '📤 Importar Espaço (JSON)',
+      btn_reset: '🔄 Recarregar Tarefas de Exemplo',
+      btn_done: 'Concluído',
+      modal_cat_new: 'Criar Nova Categoria',
+      modal_cat_edit: 'Editar Categoria',
+      modal_cat_name: 'Nome da Categoria',
+      modal_cat_folder: 'Pasta (Incluída em)',
+      modal_cat_color: 'Cor de Destaque',
+      modal_cat_icon: 'Ícone',
+      modal_cat_preview: 'Prévia do Selo',
+      modal_folder_new: 'Criar Pasta de Projeto',
+      modal_folder_edit: 'Editar Pasta de Projeto',
+      modal_folder_name: 'Nome da Pasta',
+      modal_folder_desc: 'Descrição Breve',
+      modal_task_edit: 'Editar Detalhes da Tarefa',
+      modal_task_title: 'Título da Tarefa',
+      modal_task_notes: 'Notas / Contexto',
+      modal_task_folder: 'Pasta (Projeto)',
+      modal_task_category: 'Categoria',
+      modal_task_priority: 'Prioridade',
+      modal_task_due: 'Data de Vencimento',
+      modal_task_completed: 'Status de Conclusão',
+      modal_task_completed_date: 'Data e Hora da Conclusão',
+      btn_delete_task: 'Excluir Tarefa',
+      btn_save_changes: 'Salvar Alterações',
+      btn_cancel: 'Cancelar',
+      toast_task_added: 'Tarefa adicionada ao seu espaço!',
+      toast_task_completed: 'Concluída: ',
+      toast_task_deleted: 'Tarefa excluída',
+      toast_sound_on: 'Sons ativados',
+      toast_sound_off: 'Sons silenciados',
+      toast_lang_changed: 'Idioma atualizado'
+    }
+  };
+
+  function t(key) {
+    const lang = state.language || 'en';
+    if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key] !== undefined) {
+      return TRANSLATIONS[lang][key];
+    }
+    if (TRANSLATIONS['en'] && TRANSLATIONS['en'][key] !== undefined) {
+      return TRANSLATIONS['en'][key];
+    }
+    return key;
+  }
+
+  function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const k = el.dataset.i18n;
+      el.textContent = t(k);
+    });
+
+    if (dom.taskSearchInput) {
+      dom.taskSearchInput.placeholder = t('search_placeholder');
+    }
+    if (dom.taskMessageInput) {
+      dom.taskMessageInput.placeholder = t('input_placeholder');
+    }
+
+    // Sort selector options
+    if (dom.taskSortSelect) {
+      const opts = dom.taskSortSelect.options;
+      if (opts.length >= 5) {
+        opts[0].textContent = t('sort_newest');
+        opts[1].textContent = t('sort_oldest');
+        opts[2].textContent = t('sort_priority');
+        opts[3].textContent = t('sort_due');
+        opts[4].textContent = t('sort_title');
+      }
+    }
+  }
+
 
   const PRESET_COLORS = [
     '#6366f1', // Indigo
@@ -179,6 +816,7 @@
     searchQuery: '',
     sortBy: 'created-desc',
     soundEnabled: true,
+    language: 'en',
     // Entry bar current picks (allow No Folder & No Category):
     entry: {
       folderId: '',
@@ -283,6 +921,11 @@
     const soundSetting = localStorage.getItem(SOUND_KEY);
     if (soundSetting !== null) {
       state.soundEnabled = soundSetting === 'true';
+    }
+
+    const savedLang = localStorage.getItem(LANG_KEY);
+    if (savedLang && TRANSLATIONS[savedLang]) {
+      state.language = savedLang;
     }
 
     // Allow No Folder & No Category (validate only if set)
@@ -467,9 +1110,8 @@
     // Sidebar buttons
     openNewFolderModalBtn: document.getElementById('openNewFolderModalBtn'),
     openNewCategoryModalBtn: document.getElementById('openNewCategoryModalBtn'),
-    soundToggleBtn: document.getElementById('soundToggleBtn'),
-    soundIcon: document.getElementById('soundIcon'),
-    backupDataBtn: document.getElementById('backupDataBtn'),
+    openSettingsSidebarBtn: document.getElementById('openSettingsSidebarBtn'),
+    openSettingsTopBtn: document.getElementById('openSettingsTopBtn'),
 
     // Top bar
     currentViewBadge: document.getElementById('currentViewBadge'),
@@ -563,9 +1205,14 @@
     editTaskCompletedDateInput: document.getElementById('editTaskCompletedDateInput'),
     deleteTaskFromEditBtn: document.getElementById('deleteTaskFromEditBtn'),
 
-    // Backup Modal
-    backupModal: document.getElementById('backupModal'),
-    closeBackupModalBtn: document.getElementById('closeBackupModalBtn'),
+    // Settings Modal & Preferences
+    settingsModal: document.getElementById('settingsModal'),
+    closeSettingsModalBtn: document.getElementById('closeSettingsModalBtn'),
+    doneSettingsModalBtn: document.getElementById('doneSettingsModalBtn'),
+    settingsLanguageSelect: document.getElementById('settingsLanguageSelect'),
+    settingsSoundToggle: document.getElementById('settingsSoundToggle'),
+    settingsSoundStatusLabel: document.getElementById('settingsSoundStatusLabel'),
+    settingsSoundIcon: document.getElementById('settingsSoundIcon'),
     exportDataBtn: document.getElementById('exportDataBtn'),
     importDataFileInput: document.getElementById('importDataFileInput'),
     resetDemoDataBtn: document.getElementById('resetDemoDataBtn'),
@@ -859,25 +1506,25 @@
    * Render Top Header Info & Active Filter Badges
    */
   function renderTopHeader() {
-    let title = 'All Tasks';
+    let title = t('view_all');
     let badge = 'Workspace';
     let desc = 'Showing all open & completed items across your projects';
 
     if (state.activeView.type === 'today') {
       badge = 'Smart View';
-      title = 'Today’s Focus';
+      title = t('view_today');
       desc = 'Tasks scheduled for completion today';
     } else if (state.activeView.type === 'important') {
       badge = 'Smart View';
-      title = 'Priority & Starred';
+      title = t('view_important');
       desc = 'Urgent action items requiring your high attention';
     } else if (state.activeView.type === 'completed') {
       badge = 'Archive';
-      title = 'Completed Tasks';
+      title = t('view_completed');
       desc = 'All finished achievements across your folders';
     } else if (state.activeView.type === 'unassigned') {
       badge = 'Inbox';
-      title = 'No Folder / Unassigned';
+      title = t('view_unassigned');
       desc = 'Tasks not organized into any folder or project';
     } else if (state.activeView.type === 'folder') {
       const folder = state.folders.find(f => f.id === state.activeView.id);
@@ -957,11 +1604,11 @@
     const activeFolder = state.folders.find(f => f.id === state.entry.folderId);
     if (activeFolder) {
       dom.entryFolderIcon.textContent = activeFolder.icon || '📁';
-      dom.entryFolderLabel.textContent = `Folder: ${activeFolder.name}`;
+      dom.entryFolderLabel.textContent = `${t('folder_prefix')}${activeFolder.name}`;
     } else {
       state.entry.folderId = '';
       dom.entryFolderIcon.textContent = '📂';
-      dom.entryFolderLabel.textContent = 'No Folder';
+      dom.entryFolderLabel.textContent = t('no_folder');
     }
 
     // Populate Folder Dropdown
@@ -971,7 +1618,7 @@
     const noneFolderBtn = document.createElement('button');
     noneFolderBtn.type = 'button';
     noneFolderBtn.className = `dropdown-item ${!state.entry.folderId ? 'active' : ''}`;
-    noneFolderBtn.innerHTML = `<span>📂</span><span>None (No Folder)</span>`;
+    noneFolderBtn.innerHTML = `<span>📂</span><span>${t('no_folder')}</span>`;
     noneFolderBtn.addEventListener('click', () => {
       state.entry.folderId = '';
       renderEntryChips();
@@ -1002,7 +1649,7 @@
     } else {
       state.entry.categoryId = '';
       dom.entryCategoryDot.style.backgroundColor = 'transparent';
-      dom.entryCategoryLabel.textContent = 'No Category';
+      dom.entryCategoryLabel.textContent = t('no_category');
     }
 
     // Populate Category Dropdown
@@ -1015,7 +1662,7 @@
     noneCatBtn.innerHTML = `
       <span class="chip-color-dot" style="background-color: transparent; border: 1px dashed var(--text-dim);"></span>
       <span>🏷️</span>
-      <span>None (No Category)</span>
+      <span>${t('no_category')}</span>
     `;
     noneCatBtn.addEventListener('click', () => {
       state.entry.categoryId = '';
@@ -1072,8 +1719,8 @@
     // 3. Priority Chip
     const prio = state.entry.priority || 'medium';
     dom.entryPriorityDot.className = `priority-dot priority-${prio}`;
-    const prioLabels = { low: 'Low', medium: 'Normal', high: 'Urgent' };
-    dom.entryPriorityLabel.textContent = `Priority: ${prioLabels[prio]}`;
+    const prioLabels = { low: t('prio_low'), medium: t('prio_normal'), high: t('prio_urgent') };
+    dom.entryPriorityLabel.textContent = `${t('priority_prefix')}${prioLabels[prio]}`;
 
     // 4. Due Date
     if (state.entry.dueDate) {
@@ -1082,7 +1729,7 @@
       if (dom.metaDateWrap) dom.metaDateWrap.classList.add('has-date');
       if (dom.clearEntryDueDateBtn) dom.clearEntryDueDateBtn.style.display = 'flex';
     } else {
-      dom.entryDueDateLabel.textContent = 'No Due Date';
+      dom.entryDueDateLabel.textContent = t('no_due_date');
       dom.entryDueDateInput.value = '';
       if (dom.metaDateWrap) dom.metaDateWrap.classList.remove('has-date');
       if (dom.clearEntryDueDateBtn) dom.clearEntryDueDateBtn.style.display = 'none';
@@ -1952,6 +2599,43 @@
   }
 
   // ==========================================
+  
+  // ==========================================
+  // 14. SETTINGS & PREFERENCES MODAL
+  // ==========================================
+  function openSettingsModal() {
+    if (dom.settingsLanguageSelect) {
+      dom.settingsLanguageSelect.value = state.language || 'en';
+    }
+    if (dom.settingsSoundToggle) {
+      dom.settingsSoundToggle.checked = !!state.soundEnabled;
+    }
+    if (dom.settingsSoundStatusLabel) {
+      dom.settingsSoundStatusLabel.textContent = state.soundEnabled ? t('sound_enabled') : t('sound_muted');
+    }
+    if (dom.settingsSoundIcon) {
+      dom.settingsSoundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
+    }
+    if (dom.settingsModal) {
+      dom.settingsModal.classList.add('open');
+    }
+  }
+
+  function closeSettingsModal() {
+    if (dom.settingsModal) {
+      dom.settingsModal.classList.remove('open');
+    }
+  }
+
+  function changeLanguage(langCode) {
+    if (!TRANSLATIONS[langCode]) return;
+    state.language = langCode;
+    localStorage.setItem(LANG_KEY, langCode);
+    applyTranslations();
+    renderAll();
+    showToast(t('toast_lang_changed'), 'info');
+  }
+
   // 14. BACKUP, IMPORT, EXPORT
   // ==========================================
   function exportData() {
@@ -1983,7 +2667,7 @@
           state.categories = parsed.categories;
           state.tasks = parsed.tasks;
           saveState();
-          dom.backupModal.classList.remove('open');
+          dom.settingsModal.classList.remove('open');
           showToast('Workspace imported successfully!', 'success');
           renderAll();
         } else {
@@ -2003,7 +2687,7 @@
       state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
       state.activeView = { type: 'all', id: null };
       saveState();
-      dom.backupModal.classList.remove('open');
+      dom.settingsModal.classList.remove('open');
       showToast('Sample data reloaded!', 'info');
       renderAll();
     }
@@ -2183,12 +2867,47 @@
       closeTaskEditModal();
     });
 
-    // Backup modal events
-    dom.backupDataBtn.addEventListener('click', () => dom.backupModal.classList.add('open'));
-    dom.closeBackupModalBtn.addEventListener('click', () => dom.backupModal.classList.remove('open'));
-    dom.exportDataBtn.addEventListener('click', exportData);
-    dom.importDataFileInput.addEventListener('change', (e) => importData(e.target.files[0]));
-    dom.resetDemoDataBtn.addEventListener('click', resetToSampleData);
+    // Settings Modal events & preferences
+    if (dom.openSettingsSidebarBtn) {
+      dom.openSettingsSidebarBtn.addEventListener('click', openSettingsModal);
+    }
+    if (dom.openSettingsTopBtn) {
+      dom.openSettingsTopBtn.addEventListener('click', openSettingsModal);
+    }
+    if (dom.closeSettingsModalBtn) {
+      dom.closeSettingsModalBtn.addEventListener('click', closeSettingsModal);
+    }
+    if (dom.doneSettingsModalBtn) {
+      dom.doneSettingsModalBtn.addEventListener('click', closeSettingsModal);
+    }
+    if (dom.settingsLanguageSelect) {
+      dom.settingsLanguageSelect.addEventListener('change', (e) => {
+        changeLanguage(e.target.value);
+      });
+    }
+    if (dom.settingsSoundToggle) {
+      dom.settingsSoundToggle.addEventListener('change', (e) => {
+        state.soundEnabled = !!e.target.checked;
+        localStorage.setItem(SOUND_KEY, state.soundEnabled);
+        if (dom.settingsSoundStatusLabel) {
+          dom.settingsSoundStatusLabel.textContent = state.soundEnabled ? t('sound_enabled') : t('sound_muted');
+        }
+        if (dom.settingsSoundIcon) {
+          dom.settingsSoundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
+        }
+        showToast(state.soundEnabled ? t('toast_sound_on') : t('toast_sound_off'), 'info');
+        if (state.soundEnabled) SoundFX.complete();
+      });
+    }
+    if (dom.exportDataBtn) {
+      dom.exportDataBtn.addEventListener('click', exportData);
+    }
+    if (dom.importDataFileInput) {
+      dom.importDataFileInput.addEventListener('change', (e) => importData(e.target.files[0]));
+    }
+    if (dom.resetDemoDataBtn) {
+      dom.resetDemoDataBtn.addEventListener('click', resetToSampleData);
+    }
 
     // Search bar
     dom.taskSearchInput.addEventListener('input', (e) => {
@@ -2224,17 +2943,7 @@
       });
     });
 
-    // Sound toggle button
-    dom.soundToggleBtn.addEventListener('click', () => {
-      state.soundEnabled = !state.soundEnabled;
-      localStorage.setItem(SOUND_KEY, state.soundEnabled);
-      dom.soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
-      dom.soundToggleBtn.classList.toggle('active', state.soundEnabled);
-      showToast(state.soundEnabled ? 'Audio feedback turned ON' : 'Audio muted', 'info');
-      if (state.soundEnabled) SoundFX.complete();
-    });
-    dom.soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
-    dom.soundToggleBtn.classList.toggle('active', state.soundEnabled);
+    // Sound toggle moved to Settings Modal
 
     // Empty state write button
     dom.emptyStateAddBtn.addEventListener('click', () => {
@@ -2260,7 +2969,7 @@
         closeCategoryModal();
         closeFolderModal();
         closeTaskEditModal();
-        dom.backupModal.classList.remove('open');
+        closeSettingsModal();
       }
     });
 
@@ -2310,13 +3019,13 @@
     if (parts.length !== 3) return dateStr;
 
     const todayStr = getLocalDateString();
-    if (dateStr === todayStr) return 'Today';
+    if (dateStr === todayStr) return t('date_today');
 
     const tmrwStr = getOffsetDateString(1);
-    if (dateStr === tmrwStr) return 'Tomorrow';
+    if (dateStr === tmrwStr) return t('date_tomorrow');
 
     const yestStr = getOffsetDateString(-1);
-    if (dateStr === yestStr) return 'Yesterday';
+    if (dateStr === yestStr) return t('date_yesterday');
 
     const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -2361,6 +3070,7 @@
   function init() {
     loadInitialState();
     bindEventListeners();
+    applyTranslations();
     renderAll();
   }
 
