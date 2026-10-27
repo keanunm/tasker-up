@@ -16,7 +16,7 @@
   <link rel="alternate icon" href="favicon.svg">
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.2">
+  <link rel="stylesheet" href="css/style.css?v=2.3">
 </head>
 <body class="theme-dark">
   <!-- Subtle ambient background glow -->
@@ -697,22 +697,21 @@
       </div>
 
       <div class="invite-modal-body">
-        <!-- Active Persona Preview Switcher (Allows testing as Host vs Member) -->
-        <div class="active-persona-banner">
-          <div class="persona-info">
-            <span class="persona-icon" id="personaBadgeIcon">👑</span>
+        <!-- Sharable Invite Link Section -->
+        <div class="invite-link-card">
+          <div class="invite-link-header">
+            <span class="invite-link-icon">🔗</span>
             <div>
-              <span class="persona-label">Testing Persona:</span>
-              <strong id="personaRoleName">Host (You)</strong>
-              <span class="persona-email" id="personaEmailDisplay">(host@workspace)</span>
+              <strong class="invite-link-title">Share Project Invite Link</strong>
+              <p class="invite-link-desc">Anyone with this link can join this project as a member.</p>
             </div>
           </div>
-          <div class="persona-switch-wrap">
-            <label for="personaSelector" class="persona-select-label">Switch Persona:</label>
-            <select id="personaSelector" class="custom-select persona-select">
-              <option value="host">👑 Host (Owner)</option>
-              <!-- Dynamic options added here -->
-            </select>
+          <div class="invite-link-row">
+            <input type="text" id="projectInviteLinkInput" class="invite-link-input" readonly>
+            <button type="button" class="copy-invite-link-btn" id="copyInviteLinkBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy Link</span>
+            </button>
           </div>
         </div>
 
@@ -785,12 +784,10 @@
         </div>
       </div>
 
-      <!-- Quick Speaking-As Persona Switcher -->
-      <div class="chat-sender-bar">
-        <span class="chat-sender-label">Speak as:</span>
-        <select id="chatSenderSelect" class="chat-sender-select">
-          <option value="host">👑 Host</option>
-        </select>
+      <!-- User identity bar -->
+      <div class="chat-user-bar">
+        <span>Chatting as:</span>
+        <span class="chat-user-badge" id="chatUserIdentity">You</span>
       </div>
 
       <!-- Messages Body -->
@@ -814,6 +811,42 @@
     </div>
   </div>
 
+  <!-- MODAL: ACCEPT PROJECT INVITATION -->
+  <div class="modal-backdrop" id="acceptInviteModal" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card-invite" style="max-width: 460px; text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+      <h2 class="modal-title" id="acceptProjectTitle">Project Invitation</h2>
+      <p class="modal-subtitle" id="acceptProjectDesc" style="margin-top: 6px; margin-bottom: 20px;">
+        You have been invited to collaborate on this project on Tasker Up!
+      </p>
+
+      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; text-align: left;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <span style="font-size: 1.4rem;" id="acceptProjectIcon">📁</span>
+          <div>
+            <strong style="color: #fff; font-size: 1rem;" id="acceptFolderName">General</strong>
+            <span style="display: block; font-size: 0.76rem; color: var(--text-dim);" id="acceptHostName">Invited by Host</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; font-size: 0.78rem; color: var(--text-muted);">
+          <span>Role: <strong style="color: #60a5fa;" id="acceptRoleBadge">Member</strong></span>
+          <span>•</span>
+          <span>Can complete tasks & chat</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="text-align: left; margin-bottom: 20px;">
+        <label for="acceptMemberNameInput">Your Name</label>
+        <input type="text" id="acceptMemberNameInput" placeholder="Enter your name" required autocomplete="name">
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="secondary-btn flex-1" id="declineInviteBtn">Decline</button>
+        <button type="button" class="primary-btn flex-1" id="confirmAcceptInviteBtn">Accept & Join</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
@@ -823,8 +856,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
   <!-- APPLICATION SCRIPTS -->
-  <script src="js/firebase-config.js?v=2.2"></script>
-  <script src="js/cloud-sync.js?v=2.2"></script>
-  <script src="js/app.js?v=2.2"></script>
+  <script src="js/firebase-config.js?v=2.3"></script>
+  <script src="js/cloud-sync.js?v=2.3"></script>
+  <script src="js/app.js?v=2.3"></script>
 </body>
 </html>

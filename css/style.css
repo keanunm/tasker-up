@@ -2626,48 +2626,67 @@ html, body {
   margin-top: 14px;
   margin-bottom: 18px;
 }
-.active-persona-banner {
+.invite-link-card {
   background: rgba(99, 102, 241, 0.08);
   border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.invite-link-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
-.persona-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.persona-icon {
+.invite-link-icon {
   font-size: 1.25rem;
 }
-.persona-label {
-  font-size: 0.76rem;
+.invite-link-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #fff;
+}
+.invite-link-desc {
+  font-size: 0.74rem;
   color: var(--text-dim);
-  margin-right: 4px;
+  margin-top: 2px;
 }
-.persona-email {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  margin-left: 4px;
-}
-.persona-switch-wrap {
+.invite-link-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.persona-select-label {
-  font-size: 0.76rem;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-.persona-select {
-  padding: 4px 24px 4px 8px;
-  font-size: 0.78rem;
+.invite-link-input {
+  flex: 1;
   background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: #c7d2fe;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+}
+.copy-invite-link-btn {
+  background: var(--gradient-brand);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--trans-fast);
+}
+.copy-invite-link-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
 }
 
 .invite-form-card {
@@ -3003,30 +3022,20 @@ html, body {
   color: #fff;
 }
 
-/* Quick Persona Selector inside Chat */
-.chat-sender-bar {
+/* User Identity Bar inside Chat */
+.chat-user-bar {
   padding: 6px 14px;
   background: rgba(99, 102, 241, 0.08);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-}
-.chat-sender-label {
   font-size: 0.74rem;
   color: var(--text-dim);
-  font-weight: 500;
 }
-.chat-sender-select {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  color: var(--text-main);
-  font-size: 0.76rem;
-  padding: 2px 8px;
-  outline: none;
-  cursor: pointer;
+.chat-user-badge {
+  font-weight: 600;
+  color: #c7d2fe;
 }
 
 /* Chat Messages Scroll Container */
