@@ -1332,12 +1332,12 @@
   // ==========================================
 
   function renderAll() {
-    renderSidebarCounts();
-    renderFoldersList();
-    renderCategoriesList();
-    renderTopHeader();
-    renderEntryChips();
-    renderTasks();
+    try { renderSidebarCounts(); } catch (err) { console.error('renderSidebarCounts error:', err); }
+    try { renderFoldersList(); } catch (err) { console.error('renderFoldersList error:', err); }
+    try { renderCategoriesList(); } catch (err) { console.error('renderCategoriesList error:', err); }
+    try { renderTopHeader(); } catch (err) { console.error('renderTopHeader error:', err); }
+    try { renderEntryChips(); } catch (err) { console.error('renderEntryChips error:', err); }
+    try { renderTasks(); } catch (err) { console.error('renderTasks error:', err); }
   }
 
   /**
@@ -1381,18 +1381,29 @@
    * Render Folder items and nested Categories in Sidebar
    */
   function renderFoldersList() {
+    if (!dom.foldersList) return;
     dom.foldersList.innerHTML = '';
 
+    if (!Array.isArray(state.folders)) state.folders = [];
+    if (!Array.isArray(state.tasks)) state.tasks = [];
+    if (!Array.isArray(state.categories)) state.categories = [];
+    if (!state.collapsedFolders || typeof state.collapsedFolders !== 'object') state.collapsedFolders = {};
+
     state.folders.forEach(folder => {
+      if (!folder || !folder.id) return;
       ensureFolderCollaboration(folder);
       const isCollapsed = !!state.collapsedFolders[folder.id];
-      const folderTasks = state.tasks.filter(t => t.folderId === folder.id && !t.completed);
-      const isFolderActive = state.activeView.type === 'folder' && state.activeView.id === folder.id;
-      const childCategories = state.categories.filter(c => c.folderId === folder.id);
-      const hasMemberActivity = state.tasks.some(t => t.folderId === folder.id && t.memberCompleted);
+      const folderTasks = state.tasks.filter(t => t && t.folderId === folder.id && !t.completed);
+      const isFolderActive = state.activeView && state.activeView.type === 'folder' && state.activeView.id === folder.id;
+      const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
+      const hasMemberActivity = state.tasks.some(t => t && t.folderId === folder.id && t.memberCompleted);
 
       const group = document.createElement('div');
       group.className = `folder-group ${isCollapsed ? 'collapsed' : ''}`;
+
+      const folderColor = folder.color || '#6366f1';
+      const folderName = folder.name || 'Unnamed Folder';
+      const folderIcon = folder.icon || '📁';
 
       // 1. Folder Header Row with Member Activity Glow
       const headerRow = document.createElement('div');
@@ -1402,10 +1413,10 @@
           <button class="folder-toggle-btn" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
             ${isCollapsed ? '▶' : '▼'}
           </button>
-          <span class="folder-badge-icon" style="background-color: ${folder.color}22; color: ${folder.color}; margin-right: 8px;">
-            ${folder.icon || '📁'}
+          <span class="folder-badge-icon" style="background-color: ${folderColor}22; color: ${folderColor}; margin-right: 8px;">
+            ${folderIcon}
           </span>
-          <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(folder.name)}</span>
+          <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(folderName)}</span>
           ${hasMemberActivity ? '<span class="folder-glow-indicator" title="Member completed a task in this project!"></span>' : ''}
         </div>
         <span class="nav-count">${folderTasks.length}</span>
@@ -1886,20 +1897,27 @@
         return a.starred ? -1 : 1;
       }
 
+      function getTaskTime(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        if (typeof val.toMillis === 'function') return val.toMillis();
+        const num = new Date(val).getTime();
+        return isNaN(num) ? 0 : num;
+      }
       if (state.sortBy === 'created-asc') {
-        return a.createdAt - b.createdAt;
+        return getTaskTime(a.createdAt) - getTaskTime(b.createdAt);
       } else if (state.sortBy === 'priority-desc') {
         const weights = { high: 3, medium: 2, low: 1 };
         return (weights[b.priority] || 2) - (weights[a.priority] || 2);
       } else if (state.sortBy === 'due-asc') {
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
-        return a.dueDate.localeCompare(b.dueDate);
+        return (a.dueDate || '').localeCompare(b.dueDate || '');
       } else if (state.sortBy === 'title-asc') {
-        return a.title.localeCompare(b.title);
+        return (a.title || '').localeCompare(b.title || '');
       } else {
         // default: created-desc
-        return b.createdAt - a.createdAt;
+        return getTaskTime(b.createdAt) - getTaskTime(a.createdAt);
       }
     });
 
@@ -2727,15 +2745,21 @@
 
   function ensureFolderCollaboration(folder) {
     if (!folder) return;
+    if (!folder.color) folder.color = '#6366f1';
+    if (!folder.name) folder.name = 'Unnamed Folder';
     if (!folder.hostEmail) {
-      folder.hostEmail = (window.CloudSync && window.CloudSync.getCurrentUser() && window.CloudSync.getCurrentUser().email) || 'host@taskerup.io';
+      const curUser = window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser();
+      folder.hostEmail = (curUser && curUser.email) || 'host@taskerup.io';
     }
+    const safeHostEmail = folder.hostEmail || 'host@taskerup.io';
+    const hostName = (safeHostEmail.includes('@') ? safeHostEmail.split('@')[0] : safeHostEmail) || 'Host';
+
     if (!Array.isArray(folder.members) || folder.members.length === 0) {
       folder.members = [
         {
           id: 'mem-host-' + folder.id,
-          email: folder.hostEmail,
-          name: folder.hostEmail.split('@')[0],
+          email: safeHostEmail,
+          name: hostName,
           role: 'host',
           joinedAt: folder.createdAt || Date.now() - 86400000,
           avatarColor: '#f59e0b'
