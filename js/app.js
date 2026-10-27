@@ -905,6 +905,25 @@
             else c.folderId = null;
           }
         });
+
+        // Ensure folders have collaboration structures
+        state.folders.forEach(f => ensureFolderCollaboration(f));
+
+        // Ensure at least one member-completed demo task for initial blue glow exploration
+        if (!state.tasks.some(t => t.memberCompleted)) {
+          const alphaTask = state.tasks.find(t => t.folderId === 'folder-alpha');
+          if (alphaTask) {
+            alphaTask.completed = true;
+            alphaTask.completedAt = Date.now() - 1800000;
+            alphaTask.completedBy = {
+              email: 'alex.dev@gmail.com',
+              name: 'Alex Rivera',
+              role: 'member',
+              at: Date.now() - 1800000
+            };
+            alphaTask.memberCompleted = true;
+          }
+        }
       } else {
         state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
         state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
@@ -1113,10 +1132,53 @@
     openSettingsSidebarBtn: document.getElementById('openSettingsSidebarBtn'),
     openSettingsTopBtn: document.getElementById('openSettingsTopBtn'),
 
-    // Top bar
+    // Top bar & Project Collaboration
     currentViewBadge: document.getElementById('currentViewBadge'),
     currentViewTitle: document.getElementById('currentViewTitle'),
     currentViewDescription: document.getElementById('currentViewDescription'),
+    projectCollabHeaderActions: document.getElementById('projectCollabHeaderActions'),
+    viewHeaderInviteBtn: document.getElementById('viewHeaderInviteBtn'),
+    viewHeaderChatBtn: document.getElementById('viewHeaderChatBtn'),
+    viewHeaderChatCount: document.getElementById('viewHeaderChatCount'),
+    collaboratorAvatarStack: document.getElementById('collaboratorAvatarStack'),
+
+    // Project Properties Modal Collaboration Section
+    folderCollabSection: document.getElementById('folderCollabSection'),
+    openInviteFromPropertiesBtn: document.getElementById('openInviteFromPropertiesBtn'),
+    folderMembersPreview: document.getElementById('folderMembersPreview'),
+
+    // Invite & Collaborator Management Modal
+    inviteMemberModal: document.getElementById('inviteMemberModal'),
+    closeInviteModalBtn: document.getElementById('closeInviteModalBtn'),
+    doneInviteModalBtn: document.getElementById('doneInviteModalBtn'),
+    inviteModalTitle: document.getElementById('inviteModalTitle'),
+    inviteModalSubtitle: document.getElementById('inviteModalSubtitle'),
+    personaSelector: document.getElementById('personaSelector'),
+    personaRoleName: document.getElementById('personaRoleName'),
+    personaEmailDisplay: document.getElementById('personaEmailDisplay'),
+    personaBadgeIcon: document.getElementById('personaBadgeIcon'),
+    inviteMemberForm: document.getElementById('inviteMemberForm'),
+    inviteEmailInput: document.getElementById('inviteEmailInput'),
+    inviteRoleSelect: document.getElementById('inviteRoleSelect'),
+    sendInviteBtn: document.getElementById('sendInviteBtn'),
+    projectMembersList: document.getElementById('projectMembersList'),
+    modalMembersCountBadge: document.getElementById('modalMembersCountBadge'),
+
+    // Small Project Chat Widget
+    projectChatWidget: document.getElementById('projectChatWidget'),
+    chatFloatingBtn: document.getElementById('chatFloatingBtn'),
+    chatFloatingLabel: document.getElementById('chatFloatingLabel'),
+    chatUnreadDot: document.getElementById('chatUnreadDot'),
+    chatWindow: document.getElementById('chatWindow'),
+    chatProjectTitle: document.getElementById('chatProjectTitle'),
+    chatMembersOnline: document.getElementById('chatMembersOnline'),
+    minimizeChatBtn: document.getElementById('minimizeChatBtn'),
+    closeChatBtn: document.getElementById('closeChatBtn'),
+    chatSenderSelect: document.getElementById('chatSenderSelect'),
+    chatMessages: document.getElementById('chatMessages'),
+    chatMessageForm: document.getElementById('chatMessageForm'),
+    chatMessageInput: document.getElementById('chatMessageInput'),
+    chatSendBtn: document.getElementById('chatSendBtn'),
     taskSearchInput: document.getElementById('taskSearchInput'),
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     statsPillText: document.getElementById('statsPillText'),
@@ -1325,9 +1387,11 @@
             ${folder.icon || '📁'}
           </span>
           <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(folder.name)}</span>
+          ${hasMemberActivity ? '<span class="folder-glow-indicator" title="Member completed a task in this project!"></span>' : ''}
         </div>
         <span class="nav-count">${folderTasks.length}</span>
         <div class="folder-actions-hover">
+          <button class="mini-action-btn invite-folder-btn" title="Invite Member to ${escapeHtml(folder.name)}">👥</button>
           <button class="mini-action-btn add-cat-in-folder-btn" title="Add category inside this folder">➕</button>
           <button class="mini-action-btn edit-folder-btn" title="Edit folder">✏️</button>
           <button class="mini-action-btn delete delete-folder-btn" title="Delete folder">🗑️</button>
@@ -1356,6 +1420,15 @@
         e.stopPropagation();
         openCategoryModal(null, folder.id);
       });
+
+      // Quick Invite member to folder
+      const quickInviteBtn = headerRow.querySelector('.invite-folder-btn');
+      if (quickInviteBtn) {
+        quickInviteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openInviteModal(folder);
+        });
+      }
 
       // Edit folder
       headerRow.querySelector('.edit-folder-btn').addEventListener('click', (e) => {
@@ -1828,7 +1901,8 @@
    */
   function createTaskElement(task) {
     const el = document.createElement('div');
-    el.className = `task-item ${task.completed ? 'completed' : ''}`;
+    const isMemberDone = !!task.memberCompleted;
+    el.className = `task-item ${task.completed ? 'completed' : ''} ${isMemberDone ? 'member-completed' : ''}`;
     el.dataset.id = task.id;
 
     const folder = task.folderId ? state.folders.find(f => f.id === task.folderId) : null;
@@ -1897,10 +1971,12 @@
           ${priorityBadgeHtml}
           ${dueBadgeHtml}
           ${completedBadgeHtml}
+          ${(isMemberDone && task.completedBy) ? `<span class="tag-badge member-completed-tag" title="Completed by member ${escapeHtml(task.completedBy.name || task.completedBy.email)} on ${formatFullDateTime(task.completedAt)}">🔵 Completed by ${escapeHtml(task.completedBy.name || task.completedBy.email)} (Member)</span>` : ''}
         </div>
       </div>
 
       <div class="task-actions">
+        ${isMemberDone ? `<button class="action-icon-btn glow-ack-btn" title="Acknowledge member completion (dismiss blue glow)">✨</button>` : ''}
         <button class="action-icon-btn star-btn ${task.starred ? 'starred' : ''}" title="${task.starred ? 'Unstar task' : 'Star task'}">
           ${task.starred ? '★' : '☆'}
         </button>
@@ -2082,10 +2158,34 @@
     task.completed = !task.completed;
     if (task.completed) {
       task.completedAt = Date.now();
-      SoundFX.complete();
-      showToast(`Completed: "${task.title.substring(0, 24)}..."`, 'success');
+      const persona = getActivePersona();
+      const isMember = persona && persona.role === 'member';
+
+      if (isMember) {
+        task.completedBy = {
+          email: persona.email,
+          name: persona.name,
+          role: 'member',
+          at: Date.now()
+        };
+        task.memberCompleted = true; // Triggers the vivid blue glowing aura!
+        SoundFX.complete();
+        showToast(`🔵 Task completed by Member (${persona.name})! Project and task are now glowing blue for the Host.`, 'info');
+      } else {
+        task.completedBy = {
+          email: persona ? persona.email : 'host@taskerup.io',
+          name: persona ? persona.name : 'Host (You)',
+          role: 'host',
+          at: Date.now()
+        };
+        task.memberCompleted = false;
+        SoundFX.complete();
+        showToast(`Completed: "${task.title.substring(0, 24)}..."`, 'success');
+      }
     } else {
       task.completedAt = null;
+      task.completedBy = null;
+      task.memberCompleted = false;
       SoundFX.uncomplete();
     }
 
@@ -2368,6 +2468,7 @@
 
     updateFolderModalSwatches();
     updateFolderModalIcons();
+    renderFolderModalCollab(existingFolder);
 
     dom.folderModal.classList.add('open');
     dom.folderNameInput.focus();
@@ -2600,6 +2701,525 @@
 
   // ==========================================
   
+
+  // ==========================================
+  // PROJECT COLLABORATION & CHAT ENGINE
+  // ==========================================
+
+  function ensureFolderCollaboration(folder) {
+    if (!folder) return;
+    if (!folder.hostEmail) {
+      folder.hostEmail = (window.CloudSync && window.CloudSync.getCurrentUser() && window.CloudSync.getCurrentUser().email) || 'host@taskerup.io';
+    }
+    if (!Array.isArray(folder.members) || folder.members.length === 0) {
+      folder.members = [
+        {
+          id: 'mem-host-' + folder.id,
+          email: folder.hostEmail,
+          name: folder.hostEmail.split('@')[0],
+          role: 'host',
+          joinedAt: folder.createdAt || Date.now() - 86400000,
+          avatarColor: '#f59e0b'
+        },
+        {
+          id: 'mem-alex-' + folder.id,
+          email: 'alex.dev@gmail.com',
+          name: 'Alex Rivera',
+          role: 'member',
+          joinedAt: folder.createdAt || Date.now() - 43200000,
+          avatarColor: '#3b82f6'
+        }
+      ];
+    }
+    if (!Array.isArray(folder.chat)) {
+      folder.chat = [
+        {
+          id: 'msg-init-' + folder.id,
+          senderEmail: 'alex.dev@gmail.com',
+          senderName: 'Alex Rivera',
+          role: 'member',
+          text: 'Hi team! Excited to collaborate on tasks in this project.',
+          createdAt: Date.now() - 7200000
+        },
+        {
+          id: 'msg-welcome-' + folder.id,
+          senderEmail: folder.hostEmail,
+          senderName: 'Host (You)',
+          role: 'host',
+          text: 'Welcome Alex! Any tasks completed will hover with a blue glow.',
+          createdAt: Date.now() - 3600000
+        }
+      ];
+    }
+  }
+
+  function getActiveFolder() {
+    if (state.activeCollabFolderId) {
+      const f = state.folders.find(x => x.id === state.activeCollabFolderId);
+      if (f) return f;
+    }
+    if (state.activeView && state.activeView.type === 'folder') {
+      const f = state.folders.find(x => x.id === state.activeView.id);
+      if (f) return f;
+    }
+    return state.folders[0] || null;
+  }
+
+  function getActivePersona() {
+    return state.activePersona || {
+      email: 'host@taskerup.io',
+      name: 'Host (You)',
+      role: 'host'
+    };
+  }
+
+  function setActivePersona(role, email, name) {
+    state.activePersona = {
+      role: role || 'host',
+      email: email || 'host@taskerup.io',
+      name: name || (role === 'host' ? 'Host (You)' : 'Member')
+    };
+
+    if (dom.personaRoleName) {
+      dom.personaRoleName.textContent = role === 'host' ? 'Host (Project Owner)' : `Member (${state.activePersona.name})`;
+    }
+    if (dom.personaEmailDisplay) {
+      dom.personaEmailDisplay.textContent = `(${state.activePersona.email})`;
+    }
+    if (dom.personaBadgeIcon) {
+      dom.personaBadgeIcon.textContent = role === 'host' ? '👑' : '👤';
+    }
+    if (dom.chatSenderSelect) {
+      dom.chatSenderSelect.value = `${role}:${state.activePersona.email}`;
+    }
+
+    showToast(`Switched testing view to ${role === 'host' ? '👑 Host' : '👤 Member (' + state.activePersona.name + ')'}`, 'info');
+    renderAll();
+  }
+
+  function openInviteModal(folder) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder) return;
+
+    state.activeCollabFolderId = folder.id;
+    ensureFolderCollaboration(folder);
+
+    if (dom.inviteModalTitle) {
+      dom.inviteModalTitle.textContent = `Project Collaborators: ${folder.name}`;
+    }
+    if (dom.inviteModalSubtitle) {
+      dom.inviteModalSubtitle.textContent = `Invite members via email to "${folder.name}" and assign permissions`;
+    }
+
+    renderInviteModalContent(folder);
+
+    if (dom.inviteMemberModal) {
+      dom.inviteMemberModal.classList.add('open');
+    }
+  }
+
+  function closeInviteModal() {
+    if (dom.inviteMemberModal) {
+      dom.inviteMemberModal.classList.remove('open');
+    }
+  }
+
+  function renderInviteModalContent(folder) {
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    const isHostViewing = state.activePersona && state.activePersona.role === 'host';
+
+    // Populate Persona Selector
+    if (dom.personaSelector) {
+      dom.personaSelector.innerHTML = '';
+      
+      const hostOpt = document.createElement('option');
+      hostOpt.value = 'host';
+      hostOpt.textContent = `👑 Host (${folder.hostEmail || 'You'})`;
+      if (state.activePersona.role === 'host') hostOpt.selected = true;
+      dom.personaSelector.appendChild(hostOpt);
+
+      folder.members.filter(m => m.role !== 'host').forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = `member:${m.id}`;
+        opt.textContent = `👤 Member (${m.name || m.email})`;
+        if (state.activePersona.role === 'member' && state.activePersona.email === m.email) {
+          opt.selected = true;
+        }
+        dom.personaSelector.appendChild(opt);
+      });
+    }
+
+    // Role banner
+    if (dom.personaRoleName) {
+      dom.personaRoleName.textContent = isHostViewing ? 'Host (Project Owner)' : `Member (${state.activePersona.name})`;
+    }
+    if (dom.personaEmailDisplay) {
+      dom.personaEmailDisplay.textContent = `(${state.activePersona.email})`;
+    }
+    if (dom.personaBadgeIcon) {
+      dom.personaBadgeIcon.textContent = isHostViewing ? '👑' : '👤';
+    }
+
+    // Host vs Member permission for invite form
+    if (dom.inviteMemberForm) {
+      if (isHostViewing) {
+        dom.inviteMemberForm.style.display = 'flex';
+      } else {
+        dom.inviteMemberForm.style.display = 'none';
+      }
+    }
+
+    // Populate Members List with Kick Buttons
+    if (dom.projectMembersList) {
+      dom.projectMembersList.innerHTML = '';
+
+      folder.members.forEach(member => {
+        const row = document.createElement('div');
+        row.className = 'member-row-item';
+
+        const isMemberHost = member.role === 'host';
+        const roleLabel = isMemberHost ? 'Host' : (member.role === 'viewer' ? 'Viewer' : 'Member');
+        const roleClass = member.role || 'member';
+
+        row.innerHTML = `
+          <div class="member-profile-wrap">
+            <div class="member-avatar-badge" style="background-color: ${member.avatarColor || '#3b82f6'};">
+              ${(member.name || member.email || '?').charAt(0).toUpperCase()}
+            </div>
+            <div class="member-details">
+              <span class="member-name-text">
+                ${escapeHtml(member.name || member.email.split('@')[0])}
+                ${isMemberHost ? '👑' : ''}
+              </span>
+              <span class="member-email-sub">${escapeHtml(member.email)}</span>
+            </div>
+          </div>
+          <div class="member-actions-wrap">
+            <span class="role-badge ${roleClass}">${roleLabel}</span>
+            ${(!isMemberHost && isHostViewing) ? `<button type="button" class="kick-member-btn" data-id="${member.id}">Kick Member</button>` : ''}
+          </div>
+        `;
+
+        // Kick button listener for Host rank
+        const kickBtn = row.querySelector('.kick-member-btn');
+        if (kickBtn) {
+          kickBtn.addEventListener('click', () => {
+            kickMemberFromProject(folder, member.id);
+          });
+        }
+
+        dom.projectMembersList.appendChild(row);
+      });
+    }
+
+    if (dom.modalMembersCountBadge) {
+      dom.modalMembersCountBadge.textContent = `${folder.members.length} ${folder.members.length === 1 ? 'Collaborator' : 'Collaborators'}`;
+    }
+  }
+
+  function inviteMemberToProject(folder, email, role = 'member') {
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    email = email.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showToast('Please enter a valid email address.', 'error');
+      return;
+    }
+
+    if (folder.members.some(m => m.email.toLowerCase() === email)) {
+      showToast(`${email} is already a member of this project!`, 'info');
+      return;
+    }
+
+    const newMember = {
+      id: 'mem-' + Date.now(),
+      email: email,
+      name: email.split('@')[0],
+      role: role,
+      joinedAt: Date.now(),
+      avatarColor: PRESET_COLORS[(folder.members.length + 1) % PRESET_COLORS.length]
+    };
+
+    folder.members.push(newMember);
+
+    // Add notification in small chat
+    folder.chat.push({
+      id: 'msg-' + Date.now(),
+      isSystem: true,
+      text: `👋 ${email} was invited as ${role === 'member' ? 'Member' : 'Viewer'} by Host.`,
+      createdAt: Date.now()
+    });
+
+    saveState();
+    SoundFX.complete();
+    showToast(`🎉 Invitation sent to ${email} as ${role}!`, 'success');
+
+    if (dom.inviteEmailInput) dom.inviteEmailInput.value = '';
+    renderInviteModalContent(folder);
+    renderCollaboratorUI();
+    renderFoldersList();
+  }
+
+  function kickMemberFromProject(folder, memberId) {
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    const mem = folder.members.find(m => m.id === memberId);
+    if (!mem) return;
+    if (mem.role === 'host') {
+      showToast('The Host rank cannot be kicked from their own project.', 'error');
+      return;
+    }
+
+    folder.members = folder.members.filter(m => m.id !== memberId);
+
+    // Add kicked message in project chat
+    folder.chat.push({
+      id: 'msg-' + Date.now(),
+      isSystem: true,
+      text: `🚫 ${mem.email} was removed from this project by Host.`,
+      createdAt: Date.now()
+    });
+
+    // Reset testing persona to host if the kicked member was active
+    if (state.activePersona && state.activePersona.email === mem.email) {
+      state.activePersona = {
+        role: 'host',
+        email: folder.hostEmail || 'host@taskerup.io',
+        name: 'Host (You)'
+      };
+    }
+
+    saveState();
+    SoundFX.click();
+    showToast(`Removed ${mem.name || mem.email} from project ${folder.name}.`, 'info');
+
+    renderInviteModalContent(folder);
+    renderCollaboratorUI();
+    renderFoldersList();
+  }
+
+  // ==========================================
+  // SMALL PROJECT CHAT CONTROLS
+  // ==========================================
+
+  function toggleProjectChat(forceOpen = null, folder = null) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    state.activeCollabFolderId = folder.id;
+
+    if (forceOpen !== null) {
+      state.isChatOpen = !!forceOpen;
+    } else {
+      state.isChatOpen = !state.isChatOpen;
+    }
+
+    if (state.isChatOpen) {
+      if (dom.chatWindow) dom.chatWindow.style.display = 'flex';
+      if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'none';
+      if (dom.chatUnreadDot) dom.chatUnreadDot.style.display = 'none';
+      renderProjectChat(folder);
+      if (dom.chatMessageInput) dom.chatMessageInput.focus();
+    } else {
+      if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+      if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'inline-flex';
+    }
+  }
+
+  function renderProjectChat(folder) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    if (dom.chatProjectTitle) {
+      dom.chatProjectTitle.textContent = `${folder.name} Chat`;
+    }
+    if (dom.chatMembersOnline) {
+      dom.chatMembersOnline.textContent = `${folder.members.length} members collaborating`;
+    }
+
+    // Populate chat speaking-as selector
+    if (dom.chatSenderSelect) {
+      dom.chatSenderSelect.innerHTML = '';
+
+      const hostOpt = document.createElement('option');
+      hostOpt.value = 'host';
+      hostOpt.textContent = `👑 Host (${folder.hostEmail.split('@')[0]})`;
+      if (state.activePersona.role === 'host') hostOpt.selected = true;
+      dom.chatSenderSelect.appendChild(hostOpt);
+
+      folder.members.filter(m => m.role !== 'host').forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = `member:${m.id}`;
+        opt.textContent = `👤 ${m.name || m.email.split('@')[0]}`;
+        if (state.activePersona.role === 'member' && state.activePersona.email === m.email) {
+          opt.selected = true;
+        }
+        dom.chatSenderSelect.appendChild(opt);
+      });
+    }
+
+    // Render Messages
+    if (dom.chatMessages) {
+      dom.chatMessages.innerHTML = '';
+
+      if (folder.chat.length === 0) {
+        dom.chatMessages.innerHTML = `<div class="chat-bubble system"><span class="chat-system-text">No messages yet. Say hello to project members!</span></div>`;
+      } else {
+        folder.chat.forEach(msg => {
+          const bubble = document.createElement('div');
+
+          if (msg.isSystem) {
+            bubble.className = 'chat-bubble system';
+            bubble.innerHTML = `<span class="chat-system-text">${escapeHtml(msg.text)}</span>`;
+          } else {
+            const isMine = state.activePersona && (state.activePersona.email === msg.senderEmail || (state.activePersona.role === msg.role && msg.role === 'host'));
+            bubble.className = `chat-bubble ${isMine ? 'mine' : 'theirs'}`;
+
+            const timeStr = msg.createdAt ? formatChatTime(msg.createdAt) : '';
+
+            bubble.innerHTML = `
+              <div class="chat-bubble-meta">
+                <span class="chat-sender-name">${escapeHtml(msg.senderName || msg.senderEmail.split('@')[0])}</span>
+                <span class="chat-role-tag ${msg.role}">${msg.role === 'host' ? 'Host' : 'Member'}</span>
+                <span class="chat-time">${timeStr}</span>
+              </div>
+              <div class="chat-bubble-content">${escapeHtml(msg.text)}</div>
+            `;
+          }
+
+          dom.chatMessages.appendChild(bubble);
+        });
+      }
+
+      // Auto scroll to bottom
+      dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+    }
+  }
+
+  function formatChatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    let hours = d.getHours();
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${mins} ${ampm}`;
+  }
+
+  function sendChatMessage(folder, text) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder || !text.trim()) return;
+    ensureFolderCollaboration(folder);
+
+    const persona = getActivePersona();
+    const newMsg = {
+      id: 'msg-' + Date.now(),
+      senderEmail: persona.email,
+      senderName: persona.name,
+      role: persona.role,
+      text: text.trim(),
+      createdAt: Date.now()
+    };
+
+    folder.chat.push(newMsg);
+    saveState();
+    SoundFX.playTone(660, 'sine', 0.08);
+
+    renderProjectChat(folder);
+
+    if (dom.chatMessageInput) {
+      dom.chatMessageInput.value = '';
+    }
+  }
+
+  function renderCollaboratorUI() {
+    const isFolderView = state.activeView && state.activeView.type === 'folder';
+    const folder = isFolderView ? state.folders.find(f => f.id === state.activeView.id) : null;
+
+    if (isFolderView && folder) {
+      ensureFolderCollaboration(folder);
+
+      if (dom.projectCollabHeaderActions) {
+        dom.projectCollabHeaderActions.style.display = 'inline-flex';
+      }
+
+      // Avatar stack
+      if (dom.collaboratorAvatarStack) {
+        dom.collaboratorAvatarStack.innerHTML = '';
+        folder.members.forEach((m, idx) => {
+          if (idx < 5) {
+            const circle = document.createElement('div');
+            circle.className = `collab-avatar-circle ${m.role === 'host' ? 'is-host' : ''}`;
+            circle.style.backgroundColor = m.avatarColor || '#3b82f6';
+            circle.textContent = (m.name || m.email || '?').charAt(0).toUpperCase();
+            circle.title = `${m.role === 'host' ? '👑 Host' : '👤 Member'}: ${m.name || m.email}`;
+            circle.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openInviteModal(folder);
+            });
+            dom.collaboratorAvatarStack.appendChild(circle);
+          }
+        });
+      }
+
+      // Chat widget visibility
+      if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'flex';
+      }
+      if (dom.chatFloatingLabel) {
+        dom.chatFloatingLabel.textContent = `${folder.name} Chat`;
+      }
+    } else {
+      if (dom.projectCollabHeaderActions) {
+        dom.projectCollabHeaderActions.style.display = 'none';
+      }
+      if (dom.projectChatWidget && !state.isChatOpen) {
+        dom.projectChatWidget.style.display = 'none';
+      }
+    }
+  }
+
+  function renderFolderModalCollab(folder) {
+    if (!dom.folderCollabSection) return;
+
+    if (folder) {
+      ensureFolderCollaboration(folder);
+      dom.folderCollabSection.style.display = 'flex';
+
+      if (dom.folderMembersPreview) {
+        dom.folderMembersPreview.innerHTML = '';
+        folder.members.forEach(m => {
+          const chip = document.createElement('div');
+          chip.className = 'member-chip-pill';
+          const isHost = m.role === 'host';
+          chip.innerHTML = `
+            <span>${isHost ? '👑' : '👤'}</span>
+            <span>${escapeHtml(m.name || m.email.split('@')[0])}</span>
+            <span class="role-badge ${m.role}">${isHost ? 'Host' : 'Member'}</span>
+          `;
+          dom.folderMembersPreview.appendChild(chip);
+        });
+      }
+
+      if (dom.openInviteFromPropertiesBtn) {
+        dom.openInviteFromPropertiesBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openInviteModal(folder);
+        };
+      }
+    } else {
+      // When creating a new folder, hide collab preview until saved
+      dom.folderCollabSection.style.display = 'none';
+    }
+  }
+
   // ==========================================
   // 14. SETTINGS & PREFERENCES MODAL
   // ==========================================
@@ -2950,6 +3570,170 @@
       dom.taskMessageInput.focus();
     });
 
+    // Collaboration & Invite Modal Listeners
+    if (dom.viewHeaderInviteBtn) {
+      dom.viewHeaderInviteBtn.addEventListener('click', () => {
+        openInviteModal(getActiveFolder());
+      });
+    }
+    if (dom.viewHeaderChatBtn) {
+      dom.viewHeaderChatBtn.addEventListener('click', () => {
+        toggleProjectChat(null, getActiveFolder());
+      });
+    }
+    if (dom.closeInviteModalBtn) {
+      dom.closeInviteModalBtn.addEventListener('click', closeInviteModal);
+    }
+    if (dom.doneInviteModalBtn) {
+      dom.doneInviteModalBtn.addEventListener('click', closeInviteModal);
+    }
+    if (dom.personaSelector) {
+      dom.personaSelector.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const folder = getActiveFolder();
+        if (val === 'host') {
+          setActivePersona('host', folder ? folder.hostEmail : 'host@taskerup.io', 'Host (You)');
+        } else if (val.startsWith('member:')) {
+          const memId = val.split(':')[1];
+          const m = folder ? folder.members.find(x => x.id === memId) : null;
+          if (m) {
+            setActivePersona(m.role || 'member', m.email, m.name || m.email.split('@')[0]);
+          }
+        }
+      });
+    }
+    if (dom.inviteMemberForm) {
+      dom.inviteMemberForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const folder = getActiveFolder();
+        const email = dom.inviteEmailInput.value;
+        const role = dom.inviteRoleSelect ? dom.inviteRoleSelect.value : 'member';
+        inviteMemberToProject(folder, email, role);
+      });
+    }
+
+    // Small Project Chat Listeners
+    if (dom.chatFloatingBtn) {
+      dom.chatFloatingBtn.addEventListener('click', () => {
+        toggleProjectChat(true, getActiveFolder());
+      });
+    }
+    if (dom.minimizeChatBtn) {
+      dom.minimizeChatBtn.addEventListener('click', () => {
+        toggleProjectChat(false);
+      });
+    }
+    if (dom.closeChatBtn) {
+      dom.closeChatBtn.addEventListener('click', () => {
+        toggleProjectChat(false);
+      });
+    }
+    if (dom.chatSenderSelect) {
+      dom.chatSenderSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const folder = getActiveFolder();
+        if (val === 'host') {
+          setActivePersona('host', folder ? folder.hostEmail : 'host@taskerup.io', 'Host (You)');
+        } else if (val.startsWith('member:')) {
+          const memId = val.split(':')[1];
+          const m = folder ? folder.members.find(x => x.id === memId) : null;
+          if (m) {
+            setActivePersona(m.role || 'member', m.email, m.name || m.email.split('@')[0]);
+          }
+        }
+      });
+    }
+    if (dom.chatMessageForm) {
+      dom.chatMessageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (dom.chatMessageInput) {
+          sendChatMessage(getActiveFolder(), dom.chatMessageInput.value);
+        }
+      });
+    }
+
+    // Collaboration & Invite Modal Listeners
+    if (dom.viewHeaderInviteBtn) {
+      dom.viewHeaderInviteBtn.addEventListener('click', () => {
+        openInviteModal(getActiveFolder());
+      });
+    }
+    if (dom.viewHeaderChatBtn) {
+      dom.viewHeaderChatBtn.addEventListener('click', () => {
+        toggleProjectChat(null, getActiveFolder());
+      });
+    }
+    if (dom.closeInviteModalBtn) {
+      dom.closeInviteModalBtn.addEventListener('click', closeInviteModal);
+    }
+    if (dom.doneInviteModalBtn) {
+      dom.doneInviteModalBtn.addEventListener('click', closeInviteModal);
+    }
+    if (dom.personaSelector) {
+      dom.personaSelector.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const folder = getActiveFolder();
+        if (val === 'host') {
+          setActivePersona('host', folder ? folder.hostEmail : 'host@taskerup.io', 'Host (You)');
+        } else if (val.startsWith('member:')) {
+          const memId = val.split(':')[1];
+          const m = folder ? folder.members.find(x => x.id === memId) : null;
+          if (m) {
+            setActivePersona(m.role || 'member', m.email, m.name || m.email.split('@')[0]);
+          }
+        }
+      });
+    }
+    if (dom.inviteMemberForm) {
+      dom.inviteMemberForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const folder = getActiveFolder();
+        const email = dom.inviteEmailInput.value;
+        const role = dom.inviteRoleSelect ? dom.inviteRoleSelect.value : 'member';
+        inviteMemberToProject(folder, email, role);
+      });
+    }
+
+    // Small Project Chat Listeners
+    if (dom.chatFloatingBtn) {
+      dom.chatFloatingBtn.addEventListener('click', () => {
+        toggleProjectChat(true, getActiveFolder());
+      });
+    }
+    if (dom.minimizeChatBtn) {
+      dom.minimizeChatBtn.addEventListener('click', () => {
+        toggleProjectChat(false);
+      });
+    }
+    if (dom.closeChatBtn) {
+      dom.closeChatBtn.addEventListener('click', () => {
+        toggleProjectChat(false);
+      });
+    }
+    if (dom.chatSenderSelect) {
+      dom.chatSenderSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const folder = getActiveFolder();
+        if (val === 'host') {
+          setActivePersona('host', folder ? folder.hostEmail : 'host@taskerup.io', 'Host (You)');
+        } else if (val.startsWith('member:')) {
+          const memId = val.split(':')[1];
+          const m = folder ? folder.members.find(x => x.id === memId) : null;
+          if (m) {
+            setActivePersona(m.role || 'member', m.email, m.name || m.email.split('@')[0]);
+          }
+        }
+      });
+    }
+    if (dom.chatMessageForm) {
+      dom.chatMessageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (dom.chatMessageInput) {
+          sendChatMessage(getActiveFolder(), dom.chatMessageInput.value);
+        }
+      });
+    }
+
     // Global click listener to close popovers and backdrop clicks
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.meta-dropdown-wrap')) {
@@ -2970,6 +3754,7 @@
         closeFolderModal();
         closeTaskEditModal();
         closeSettingsModal();
+        closeInviteModal();
       }
     });
 
