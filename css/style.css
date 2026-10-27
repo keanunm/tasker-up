@@ -264,6 +264,21 @@ html, body {
   border-color: var(--accent-primary);
 }
 
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.add-section-btn.secondary-add-btn {
+  background: transparent;
+  color: var(--text-dim);
+}
+.add-section-btn.secondary-add-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  border-color: var(--border-medium);
+}
+
 /* Nav Lists (System Views, Folders, Categories) */
 .nav-list, .folders-list, .categories-list {
   display: flex;
@@ -323,6 +338,155 @@ html, body {
 .nav-item.active .nav-count, .folder-item.active .nav-count, .category-item.active .nav-count {
   background: var(--accent-primary);
   color: #fff;
+}
+
+/* Nested Folder & Categories Tree */
+.folder-group {
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-header-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  position: relative;
+}
+.folder-header-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+}
+.folder-header-row.active {
+  background: rgba(99, 102, 241, 0.14);
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.3);
+  font-weight: 600;
+}
+.folder-header-row.active .nav-count {
+  background: var(--accent-primary);
+  color: #fff;
+}
+.folder-header-row:hover .folder-actions-hover {
+  display: flex;
+}
+.folder-header-row:hover .nav-count {
+  display: none;
+}
+
+.folder-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0 4px;
+  margin-right: 4px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--trans-fast);
+  flex-shrink: 0;
+}
+.folder-toggle-btn:hover {
+  color: #fff;
+}
+
+.folder-categories-nested {
+  margin-left: 18px;
+  padding-left: 10px;
+  border-left: 1.5px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+.folder-group.collapsed .folder-categories-nested {
+  display: none;
+}
+
+.nested-category-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+}
+.nested-category-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+.nested-category-item.active {
+  background: rgba(99, 102, 241, 0.14);
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.3);
+  font-weight: 600;
+}
+.nested-category-item.active .nav-count {
+  background: var(--accent-primary);
+  color: #fff;
+}
+.nested-category-item:hover .folder-actions-hover {
+  display: flex;
+}
+.nested-category-item:hover .nav-count {
+  display: none;
+}
+
+.add-category-sub-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  width: fit-content;
+  transition: all var(--trans-fast);
+}
+.add-category-sub-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.dropdown-sub-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 6px 10px 2px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}
+.dropdown-sub-header:first-child {
+  border-top: none;
+  margin-top: 0;
 }
 
 /* Folder Custom Item */

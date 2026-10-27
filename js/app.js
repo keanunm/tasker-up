@@ -67,12 +67,12 @@
   ];
 
   const DEFAULT_CATEGORIES = [
-    { id: 'cat-work', name: 'Work', color: '#6366f1', icon: '💼' },
-    { id: 'cat-urgent', name: 'Urgent', color: '#f43f5e', icon: '🔥' },
-    { id: 'cat-design', name: 'Design', color: '#ec4899', icon: '🎨' },
-    { id: 'cat-ideas', name: 'Ideas', color: '#8b5cf6', icon: '💡' },
-    { id: 'cat-health', name: 'Health', color: '#10b981', icon: '🌱' },
-    { id: 'cat-finance', name: 'Finance', color: '#f59e0b', icon: '📊' }
+    { id: 'cat-work', name: 'Work', color: '#6366f1', icon: '💼', folderId: 'folder-general' },
+    { id: 'cat-urgent', name: 'Urgent', color: '#f43f5e', icon: '🔥', folderId: 'folder-general' },
+    { id: 'cat-design', name: 'Design', color: '#ec4899', icon: '🎨', folderId: 'folder-alpha' },
+    { id: 'cat-ideas', name: 'Ideas', color: '#8b5cf6', icon: '💡', folderId: 'folder-alpha' },
+    { id: 'cat-health', name: 'Health', color: '#10b981', icon: '🌱', folderId: 'folder-personal' },
+    { id: 'cat-finance', name: 'Finance', color: '#f59e0b', icon: '📊', folderId: 'folder-marketing' }
   ];
 
   // ==========================================
@@ -155,8 +155,8 @@
       id: 'task-5',
       title: 'Brainstorm brand mascot & logo animations',
       notes: 'Look at Lottie micro-animations and SVG paths for header icon.',
-      folderId: 'folder-alpha',
-      categoryId: 'cat-ideas',
+      folderId: null,
+      categoryId: null,
       priority: 'medium',
       dueDate: '',
       completed: false,
@@ -173,15 +173,16 @@
     folders: [],
     categories: [],
     tasks: [],
-    activeView: { type: 'all', id: null }, // type: 'all' | 'today' | 'important' | 'completed' | 'folder' | 'category'
+    collapsedFolders: {},
+    activeView: { type: 'all', id: null }, // type: 'all' | 'today' | 'important' | 'completed' | 'unassigned' | 'folder' | 'category'
     filterState: 'all', // 'all' | 'active' | 'completed'
     searchQuery: '',
     sortBy: 'created-desc',
     soundEnabled: true,
-    // Entry bar current picks:
+    // Entry bar current picks (allow No Folder & No Category):
     entry: {
-      folderId: 'folder-general',
-      categoryId: 'cat-work',
+      folderId: '',
+      categoryId: '',
       priority: 'medium',
       dueDate: ''
     }
@@ -255,6 +256,17 @@
         state.folders = parsed.folders && parsed.folders.length ? parsed.folders : DEFAULT_FOLDERS;
         state.categories = parsed.categories && parsed.categories.length ? parsed.categories : DEFAULT_CATEGORIES;
         state.tasks = parsed.tasks ? parsed.tasks : DEFAULT_TASKS;
+
+        // Ensure categories have folderId property assigned
+        state.categories.forEach(c => {
+          if (c.folderId === undefined) {
+            if (c.id === 'cat-design' || c.id === 'cat-ideas') c.folderId = 'folder-alpha';
+            else if (c.id === 'cat-finance') c.folderId = 'folder-marketing';
+            else if (c.id === 'cat-health') c.folderId = 'folder-personal';
+            else if (c.id === 'cat-work' || c.id === 'cat-urgent') c.folderId = 'folder-general';
+            else c.folderId = null;
+          }
+        });
       } else {
         state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
         state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
@@ -273,12 +285,12 @@
       state.soundEnabled = soundSetting === 'true';
     }
 
-    // Default entry folder & category fallback
-    if (state.folders.length > 0) {
-      state.entry.folderId = state.folders[0].id;
+    // Allow No Folder & No Category (validate only if set)
+    if (state.entry.folderId && !state.folders.some(f => f.id === state.entry.folderId)) {
+      state.entry.folderId = '';
     }
-    if (state.categories.length > 0) {
-      state.entry.categoryId = state.categories[0].id;
+    if (state.entry.categoryId && !state.categories.some(c => c.id === state.entry.categoryId)) {
+      state.entry.categoryId = '';
     }
   }
 
@@ -450,6 +462,7 @@
     countToday: document.getElementById('count-today'),
     countImportant: document.getElementById('count-important'),
     countCompleted: document.getElementById('count-completed'),
+    countUnassigned: document.getElementById('count-unassigned'),
 
     // Sidebar buttons
     openNewFolderModalBtn: document.getElementById('openNewFolderModalBtn'),
@@ -515,6 +528,7 @@
     categoryForm: document.getElementById('categoryForm'),
     editCategoryId: document.getElementById('editCategoryId'),
     categoryNameInput: document.getElementById('categoryNameInput'),
+    categoryFolderSelect: document.getElementById('categoryFolderSelect'),
     categoryColorPicker: document.getElementById('categoryColorPicker'),
     categoryIconPicker: document.getElementById('categoryIconPicker'),
     categoryPreviewPill: document.getElementById('categoryPreviewPill'),
@@ -609,11 +623,15 @@
     const todayStr = getLocalDateString();
     const todayCount = state.tasks.filter(t => !t.completed && t.dueDate === todayStr).length;
     const importantCount = state.tasks.filter(t => !t.completed && (t.starred || t.priority === 'high')).length;
+    const unassignedCount = state.tasks.filter(t => !t.completed && !t.folderId).length;
 
     dom.countAll.textContent = total;
     dom.countToday.textContent = todayCount;
     dom.countImportant.textContent = importantCount;
     dom.countCompleted.textContent = completed;
+    if (dom.countUnassigned) {
+      dom.countUnassigned.textContent = unassignedCount;
+    }
 
     // Header progress arc & ratio
     const completionPercent = total === 0 ? 0 : Math.round((completed / total) * 100);
@@ -634,99 +652,207 @@
   }
 
   /**
-   * Render Folder items in Sidebar
+   * Render Folder items and nested Categories in Sidebar
    */
   function renderFoldersList() {
     dom.foldersList.innerHTML = '';
-    state.folders.forEach(folder => {
-      const count = state.tasks.filter(t => t.folderId === folder.id && !t.completed).length;
-      const isActive = state.activeView.type === 'folder' && state.activeView.id === folder.id;
 
-      const item = document.createElement('div');
-      item.className = `folder-item ${isActive ? 'active' : ''}`;
-      item.innerHTML = `
-        <div class="folder-item-left" title="${escapeHtml(folder.desc || folder.name)}">
-          <span class="folder-badge-icon" style="background-color: ${folder.color}22; color: ${folder.color}">
+    state.folders.forEach(folder => {
+      const isCollapsed = !!state.collapsedFolders[folder.id];
+      const folderTasks = state.tasks.filter(t => t.folderId === folder.id && !t.completed);
+      const isFolderActive = state.activeView.type === 'folder' && state.activeView.id === folder.id;
+      const childCategories = state.categories.filter(c => c.folderId === folder.id);
+
+      const group = document.createElement('div');
+      group.className = `folder-group ${isCollapsed ? 'collapsed' : ''}`;
+
+      // 1. Folder Header Row
+      const headerRow = document.createElement('div');
+      headerRow.className = `folder-header-row ${isFolderActive ? 'active' : ''}`;
+      headerRow.innerHTML = `
+        <div class="folder-item-left" style="display: flex; align-items: center; flex: 1; min-width: 0;">
+          <button class="folder-toggle-btn" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
+            ${isCollapsed ? '▶' : '▼'}
+          </button>
+          <span class="folder-badge-icon" style="background-color: ${folder.color}22; color: ${folder.color}; margin-right: 8px;">
             ${folder.icon || '📁'}
           </span>
-          <span class="nav-label">${escapeHtml(folder.name)}</span>
+          <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(folder.name)}</span>
         </div>
-        <span class="nav-count">${count}</span>
+        <span class="nav-count">${folderTasks.length}</span>
         <div class="folder-actions-hover">
+          <button class="mini-action-btn add-cat-in-folder-btn" title="Add category inside this folder">➕</button>
           <button class="mini-action-btn edit-folder-btn" title="Edit folder">✏️</button>
           <button class="mini-action-btn delete delete-folder-btn" title="Delete folder">🗑️</button>
         </div>
       `;
 
+      // Toggle collapse/expand
+      headerRow.querySelector('.folder-toggle-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.collapsedFolders[folder.id] = !state.collapsedFolders[folder.id];
+        renderFoldersList();
+      });
+
       // Select folder view on click
-      item.querySelector('.folder-item-left').addEventListener('click', () => {
+      headerRow.querySelector('.folder-item-left').addEventListener('click', (e) => {
+        if (e.target.closest('.folder-toggle-btn')) return;
         state.activeView = { type: 'folder', id: folder.id };
-        state.entry.folderId = folder.id; // Also sync entry folder default
+        state.entry.folderId = folder.id;
         renderAll();
         SoundFX.click();
         closeMobileSidebar();
       });
 
+      // Add Category inside this folder
+      headerRow.querySelector('.add-cat-in-folder-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCategoryModal(null, folder.id);
+      });
+
       // Edit folder
-      item.querySelector('.edit-folder-btn').addEventListener('click', (e) => {
+      headerRow.querySelector('.edit-folder-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         openFolderModal(folder);
       });
 
       // Delete folder
-      item.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
+      headerRow.querySelector('.delete-folder-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         confirmDeleteFolder(folder);
       });
 
-      dom.foldersList.appendChild(item);
+      group.appendChild(headerRow);
+
+      // 2. Nested Child Categories Container
+      const nestedCatContainer = document.createElement('div');
+      nestedCatContainer.className = 'folder-categories-nested';
+
+      childCategories.forEach(cat => {
+        const catTaskCount = state.tasks.filter(t => t.categoryId === cat.id && !t.completed).length;
+        const isCatActive = state.activeView.type === 'category' && state.activeView.id === cat.id;
+
+        const catItem = document.createElement('div');
+        catItem.className = `nested-category-item ${isCatActive ? 'active' : ''}`;
+        catItem.innerHTML = `
+          <div class="category-item-left" style="display: flex; align-items: center; flex: 1; min-width: 0; gap: 6px;">
+            <span class="category-dot" style="background-color: ${cat.color};"></span>
+            <span class="category-icon-sym" style="font-size: 0.85rem;">${cat.icon || '🏷️'}</span>
+            <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(cat.name)}</span>
+          </div>
+          <span class="nav-count">${catTaskCount}</span>
+          <div class="folder-actions-hover">
+            <button class="mini-action-btn edit-cat-btn" title="Edit category">✏️</button>
+            <button class="mini-action-btn delete delete-cat-btn" title="Delete category">🗑️</button>
+          </div>
+        `;
+
+        catItem.querySelector('.category-item-left').addEventListener('click', () => {
+          state.activeView = { type: 'category', id: cat.id };
+          state.entry.categoryId = cat.id;
+          state.entry.folderId = folder.id;
+          renderAll();
+          SoundFX.click();
+          closeMobileSidebar();
+        });
+
+        catItem.querySelector('.edit-cat-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCategoryModal(cat);
+        });
+
+        catItem.querySelector('.delete-cat-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteCategory(cat);
+        });
+
+        nestedCatContainer.appendChild(catItem);
+      });
+
+      // Quick inline "+ Add Category" button under the folder
+      const addSubBtn = document.createElement('button');
+      addSubBtn.className = 'add-category-sub-btn';
+      addSubBtn.innerHTML = `<span>+</span><span>Add Category</span>`;
+      addSubBtn.addEventListener('click', () => {
+        openCategoryModal(null, folder.id);
+      });
+      nestedCatContainer.appendChild(addSubBtn);
+
+      group.appendChild(nestedCatContainer);
+      dom.foldersList.appendChild(group);
     });
+
+    // 3. General Categories (categories with No Folder)
+    const generalCategories = state.categories.filter(c => !c.folderId || !state.folders.some(f => f.id === c.folderId));
+    if (generalCategories.length > 0) {
+      const genGroup = document.createElement('div');
+      genGroup.className = 'folder-group';
+      genGroup.style.marginTop = '8px';
+
+      const genHeader = document.createElement('div');
+      genHeader.className = 'dropdown-sub-header';
+      genHeader.style.padding = '4px 8px';
+      genHeader.textContent = 'General Categories (No Folder)';
+      genGroup.appendChild(genHeader);
+
+      const genNested = document.createElement('div');
+      genNested.className = 'folder-categories-nested';
+      genNested.style.marginLeft = '8px';
+      genNested.style.borderLeft = '1.5px solid rgba(255, 255, 255, 0.05)';
+
+      generalCategories.forEach(cat => {
+        const catTaskCount = state.tasks.filter(t => t.categoryId === cat.id && !t.completed).length;
+        const isCatActive = state.activeView.type === 'category' && state.activeView.id === cat.id;
+
+        const catItem = document.createElement('div');
+        catItem.className = `nested-category-item ${isCatActive ? 'active' : ''}`;
+        catItem.innerHTML = `
+          <div class="category-item-left" style="display: flex; align-items: center; flex: 1; min-width: 0; gap: 6px;">
+            <span class="category-dot" style="background-color: ${cat.color};"></span>
+            <span class="category-icon-sym" style="font-size: 0.85rem;">${cat.icon || '🏷️'}</span>
+            <span class="nav-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(cat.name)}</span>
+          </div>
+          <span class="nav-count">${catTaskCount}</span>
+          <div class="folder-actions-hover">
+            <button class="mini-action-btn edit-cat-btn" title="Edit category">✏️</button>
+            <button class="mini-action-btn delete delete-cat-btn" title="Delete category">🗑️</button>
+          </div>
+        `;
+
+        catItem.querySelector('.category-item-left').addEventListener('click', () => {
+          state.activeView = { type: 'category', id: cat.id };
+          state.entry.categoryId = cat.id;
+          state.entry.folderId = '';
+          renderAll();
+          SoundFX.click();
+          closeMobileSidebar();
+        });
+
+        catItem.querySelector('.edit-cat-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openCategoryModal(cat);
+        });
+
+        catItem.querySelector('.delete-cat-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteCategory(cat);
+        });
+
+        genNested.appendChild(catItem);
+      });
+
+      genGroup.appendChild(genNested);
+      dom.foldersList.appendChild(genGroup);
+    }
   }
 
   /**
-   * Render Category items in Sidebar
+   * Render Category items in Sidebar (Backwards compatibility)
    */
   function renderCategoriesList() {
-    dom.categoriesList.innerHTML = '';
-    state.categories.forEach(cat => {
-      const count = state.tasks.filter(t => t.categoryId === cat.id && !t.completed).length;
-      const isActive = state.activeView.type === 'category' && state.activeView.id === cat.id;
-
-      const item = document.createElement('div');
-      item.className = `category-item ${isActive ? 'active' : ''}`;
-      item.innerHTML = `
-        <div class="category-item-left">
-          <span class="category-dot" style="background-color: ${cat.color}; color: ${cat.color}"></span>
-          <span class="category-icon-sym">${cat.icon || '🏷️'}</span>
-          <span class="nav-label">${escapeHtml(cat.name)}</span>
-        </div>
-        <span class="nav-count">${count}</span>
-        <div class="folder-actions-hover">
-          <button class="mini-action-btn edit-cat-btn" title="Edit category">✏️</button>
-          <button class="mini-action-btn delete delete-cat-btn" title="Delete category">🗑️</button>
-        </div>
-      `;
-
-      item.querySelector('.category-item-left').addEventListener('click', () => {
-        state.activeView = { type: 'category', id: cat.id };
-        state.entry.categoryId = cat.id; // Also sync entry category default
-        renderAll();
-        SoundFX.click();
-        closeMobileSidebar();
-      });
-
-      item.querySelector('.edit-cat-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openCategoryModal(cat);
-      });
-
-      item.querySelector('.delete-cat-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        confirmDeleteCategory(cat);
-      });
-
-      dom.categoriesList.appendChild(item);
-    });
+    if (dom.categoriesList) {
+      dom.categoriesList.innerHTML = '';
+    }
   }
 
   /**
@@ -749,6 +875,10 @@
       badge = 'Archive';
       title = 'Completed Tasks';
       desc = 'All finished achievements across your folders';
+    } else if (state.activeView.type === 'unassigned') {
+      badge = 'Inbox';
+      title = 'No Folder / Unassigned';
+      desc = 'Tasks not organized into any folder or project';
     } else if (state.activeView.type === 'folder') {
       const folder = state.folders.find(f => f.id === state.activeView.id);
       if (folder) {
@@ -759,9 +889,10 @@
     } else if (state.activeView.type === 'category') {
       const cat = state.categories.find(c => c.id === state.activeView.id);
       if (cat) {
-        badge = `Category: ${cat.icon}`;
+        const parentFolder = state.folders.find(f => f.id === cat.folderId);
+        badge = parentFolder ? `${parentFolder.name} > ${cat.icon} ${cat.name}` : `Category: ${cat.icon}`;
         title = `${cat.name}`;
-        desc = `All tasks classified under #${cat.name}`;
+        desc = parentFolder ? `Tasks in category #${cat.name} inside folder "${parentFolder.name}"` : `All tasks classified under #${cat.name}`;
       }
     }
 
@@ -782,8 +913,14 @@
       dom.activeFilterTags.appendChild(searchTag);
     }
 
-    // If active view is folder or category
-    if (state.activeView.type === 'folder') {
+    // If active view is unassigned, folder, or category
+    if (state.activeView.type === 'unassigned') {
+      const tag = createFilterBadge('📂 No Folder', () => {
+        state.activeView = { type: 'all', id: null };
+        renderAll();
+      });
+      dom.activeFilterTags.appendChild(tag);
+    } else if (state.activeView.type === 'folder') {
       const folder = state.folders.find(f => f.id === state.activeView.id);
       if (folder) {
         const tag = createFilterBadge(`📁 ${folder.name}`, () => {
@@ -813,19 +950,36 @@
   }
 
   /**
-   * Sync Quick-Add Chips with current state.entry
+   * Sync Quick-Add Chips with current state.entry (Allow No Folder & No Category)
    */
   function renderEntryChips() {
     // 1. Folder Chip
-    const activeFolder = state.folders.find(f => f.id === state.entry.folderId) || state.folders[0];
+    const activeFolder = state.folders.find(f => f.id === state.entry.folderId);
     if (activeFolder) {
-      state.entry.folderId = activeFolder.id;
       dom.entryFolderIcon.textContent = activeFolder.icon || '📁';
       dom.entryFolderLabel.textContent = `Folder: ${activeFolder.name}`;
+    } else {
+      state.entry.folderId = '';
+      dom.entryFolderIcon.textContent = '📂';
+      dom.entryFolderLabel.textContent = 'No Folder';
     }
 
     // Populate Folder Dropdown
     dom.entryFolderDropdown.innerHTML = '';
+
+    // None Option
+    const noneFolderBtn = document.createElement('button');
+    noneFolderBtn.type = 'button';
+    noneFolderBtn.className = `dropdown-item ${!state.entry.folderId ? 'active' : ''}`;
+    noneFolderBtn.innerHTML = `<span>📂</span><span>None (No Folder)</span>`;
+    noneFolderBtn.addEventListener('click', () => {
+      state.entry.folderId = '';
+      renderEntryChips();
+      closeAllDropdowns();
+      SoundFX.click();
+    });
+    dom.entryFolderDropdown.appendChild(noneFolderBtn);
+
     state.folders.forEach(f => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -841,16 +995,45 @@
     });
 
     // 2. Category Chip
-    const activeCat = state.categories.find(c => c.id === state.entry.categoryId) || state.categories[0];
+    const activeCat = state.categories.find(c => c.id === state.entry.categoryId);
     if (activeCat) {
-      state.entry.categoryId = activeCat.id;
       dom.entryCategoryDot.style.backgroundColor = activeCat.color;
       dom.entryCategoryLabel.textContent = `${activeCat.icon} ${activeCat.name}`;
+    } else {
+      state.entry.categoryId = '';
+      dom.entryCategoryDot.style.backgroundColor = 'transparent';
+      dom.entryCategoryLabel.textContent = 'No Category';
     }
 
     // Populate Category Dropdown
     dom.entryCategoryDropdown.innerHTML = '';
-    state.categories.forEach(c => {
+
+    // None Option
+    const noneCatBtn = document.createElement('button');
+    noneCatBtn.type = 'button';
+    noneCatBtn.className = `dropdown-item ${!state.entry.categoryId ? 'active' : ''}`;
+    noneCatBtn.innerHTML = `
+      <span class="chip-color-dot" style="background-color: transparent; border: 1px dashed var(--text-dim);"></span>
+      <span>🏷️</span>
+      <span>None (No Category)</span>
+    `;
+    noneCatBtn.addEventListener('click', () => {
+      state.entry.categoryId = '';
+      renderEntryChips();
+      closeAllDropdowns();
+      SoundFX.click();
+    });
+    dom.entryCategoryDropdown.appendChild(noneCatBtn);
+
+    // If folder is chosen, group categories in that folder first
+    const folderCats = state.entry.folderId 
+      ? state.categories.filter(c => c.folderId === state.entry.folderId)
+      : [];
+    const otherCats = state.entry.folderId 
+      ? state.categories.filter(c => c.folderId !== state.entry.folderId)
+      : state.categories;
+
+    function appendCatBtn(c) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `dropdown-item ${c.id === state.entry.categoryId ? 'active' : ''}`;
@@ -866,7 +1049,25 @@
         SoundFX.click();
       });
       dom.entryCategoryDropdown.appendChild(btn);
-    });
+    }
+
+    if (folderCats.length > 0) {
+      const folderHdr = document.createElement('div');
+      folderHdr.className = 'dropdown-sub-header';
+      folderHdr.textContent = 'In Current Folder';
+      dom.entryCategoryDropdown.appendChild(folderHdr);
+      folderCats.forEach(appendCatBtn);
+
+      if (otherCats.length > 0) {
+        const otherHdr = document.createElement('div');
+        otherHdr.className = 'dropdown-sub-header';
+        otherHdr.textContent = 'Other Categories';
+        dom.entryCategoryDropdown.appendChild(otherHdr);
+        otherCats.forEach(appendCatBtn);
+      }
+    } else {
+      otherCats.forEach(appendCatBtn);
+    }
 
     // 3. Priority Chip
     const prio = state.entry.priority || 'medium';
@@ -902,6 +1103,8 @@
       tasks = tasks.filter(t => t.starred || t.priority === 'high');
     } else if (state.activeView.type === 'completed') {
       tasks = tasks.filter(t => t.completed);
+    } else if (state.activeView.type === 'unassigned') {
+      tasks = tasks.filter(t => !t.folderId);
     } else if (state.activeView.type === 'folder') {
       tasks = tasks.filter(t => t.folderId === state.activeView.id);
     } else if (state.activeView.type === 'category') {
@@ -981,8 +1184,28 @@
     el.className = `task-item ${task.completed ? 'completed' : ''}`;
     el.dataset.id = task.id;
 
-    const folder = state.folders.find(f => f.id === task.folderId) || { name: 'Unassigned', icon: '📁', color: '#6366f1' };
-    const category = state.categories.find(c => c.id === task.categoryId) || { name: 'None', icon: '🏷️', color: '#64748b' };
+    const folder = task.folderId ? state.folders.find(f => f.id === task.folderId) : null;
+    const category = task.categoryId ? state.categories.find(c => c.id === task.categoryId) : null;
+
+    let folderBadgeHtml = '';
+    if (folder) {
+      folderBadgeHtml = `
+        <span class="tag-badge folder-badge" title="Filter by folder: ${escapeHtml(folder.name)}">
+          <span>${folder.icon || '📁'}</span>
+          <span>${escapeHtml(folder.name)}</span>
+        </span>
+      `;
+    }
+
+    let categoryBadgeHtml = '';
+    if (category) {
+      categoryBadgeHtml = `
+        <span class="tag-badge category-badge" style="background-color: ${category.color}18; color: ${category.color}; border-color: ${category.color}35;" title="Filter by category: ${escapeHtml(category.name)}">
+          <span>${category.icon || '🏷️'}</span>
+          <span>${escapeHtml(category.name)}</span>
+        </span>
+      `;
+    }
 
     // Due date badge formatting
     let dueBadgeHtml = '';
@@ -1022,16 +1245,8 @@
         ${task.notes ? `<div class="task-notes">${escapeHtml(task.notes)}</div>` : ''}
 
         <div class="task-tags-row">
-          <span class="tag-badge folder-badge" title="Filter by folder: ${escapeHtml(folder.name)}">
-            <span>${folder.icon}</span>
-            <span>${escapeHtml(folder.name)}</span>
-          </span>
-
-          <span class="tag-badge category-badge" style="background-color: ${category.color}18; color: ${category.color}; border-color: ${category.color}35;" title="Filter by category: ${escapeHtml(category.name)}">
-            <span>${category.icon}</span>
-            <span>${escapeHtml(category.name)}</span>
-          </span>
-
+          ${folderBadgeHtml}
+          ${categoryBadgeHtml}
           ${priorityBadgeHtml}
           ${dueBadgeHtml}
           ${completedBadgeHtml}
@@ -1063,20 +1278,26 @@
     });
 
     // Event: Quick Filter click on Folder badge
-    el.querySelector('.folder-badge').addEventListener('click', (e) => {
-      e.stopPropagation();
-      state.activeView = { type: 'folder', id: task.folderId };
-      renderAll();
-      SoundFX.click();
-    });
+    const folderBadge = el.querySelector('.folder-badge');
+    if (folderBadge) {
+      folderBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.activeView = { type: 'folder', id: task.folderId };
+        renderAll();
+        SoundFX.click();
+      });
+    }
 
     // Event: Quick Filter click on Category badge
-    el.querySelector('.category-badge').addEventListener('click', (e) => {
-      e.stopPropagation();
-      state.activeView = { type: 'category', id: task.categoryId };
-      renderAll();
-      SoundFX.click();
-    });
+    const catBadge = el.querySelector('.category-badge');
+    if (catBadge) {
+      catBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.activeView = { type: 'category', id: task.categoryId };
+        renderAll();
+        SoundFX.click();
+      });
+    }
 
     // Event: Toggle Star
     el.querySelector('.star-btn').addEventListener('click', (e) => {
@@ -1116,49 +1337,60 @@
 
     // Determine Folder:
     // If user specified @folderName, find or auto-create that folder!
-    let targetFolderId = state.entry.folderId;
+    let targetFolderId = state.entry.folderId || null;
     if (parsed.folderName) {
-      const existingFolder = state.folders.find(
-        f => f.name.toLowerCase() === parsed.folderName.toLowerCase()
-      );
-      if (existingFolder) {
-        targetFolderId = existingFolder.id;
+      const lower = parsed.folderName.toLowerCase();
+      if (lower === 'none' || lower === 'nofolder' || lower === 'general') {
+        targetFolderId = null;
       } else {
-        // Auto-create folder for the user
-        const newFolder = {
-          id: 'folder-' + Date.now(),
-          name: parsed.folderName,
-          desc: 'Created via smart message',
-          color: PRESET_COLORS[state.folders.length % PRESET_COLORS.length],
-          icon: '📁',
-          createdAt: Date.now()
-        };
-        state.folders.push(newFolder);
-        targetFolderId = newFolder.id;
-        showToast(`Created new Project folder: "${parsed.folderName}"`, 'info');
+        const existingFolder = state.folders.find(
+          f => f.name.toLowerCase() === lower
+        );
+        if (existingFolder) {
+          targetFolderId = existingFolder.id;
+        } else {
+          // Auto-create folder for the user
+          const newFolder = {
+            id: 'folder-' + Date.now(),
+            name: parsed.folderName,
+            desc: 'Created via smart message',
+            color: PRESET_COLORS[state.folders.length % PRESET_COLORS.length],
+            icon: '📁',
+            createdAt: Date.now()
+          };
+          state.folders.push(newFolder);
+          targetFolderId = newFolder.id;
+          showToast(`Created new Project folder: "${parsed.folderName}"`, 'info');
+        }
       }
     }
 
     // Determine Category:
     // If user specified #categoryName, find or auto-create!
-    let targetCategoryId = state.entry.categoryId;
+    let targetCategoryId = state.entry.categoryId || null;
     if (parsed.categoryName) {
-      const existingCat = state.categories.find(
-        c => c.name.toLowerCase() === parsed.categoryName.toLowerCase()
-      );
-      if (existingCat) {
-        targetCategoryId = existingCat.id;
+      const lower = parsed.categoryName.toLowerCase();
+      if (lower === 'none' || lower === 'nocategory') {
+        targetCategoryId = null;
       } else {
-        // Auto-create category for user
-        const newCat = {
-          id: 'cat-' + Date.now(),
-          name: parsed.categoryName,
-          color: PRESET_COLORS[state.categories.length % PRESET_COLORS.length],
-          icon: '🏷️'
-        };
-        state.categories.push(newCat);
-        targetCategoryId = newCat.id;
-        showToast(`Created new Category: "${parsed.categoryName}"`, 'info');
+        const existingCat = state.categories.find(
+          c => c.name.toLowerCase() === lower
+        );
+        if (existingCat) {
+          targetCategoryId = existingCat.id;
+        } else {
+          // Auto-create category for user nested in folder!
+          const newCat = {
+            id: 'cat-' + Date.now(),
+            name: parsed.categoryName,
+            color: PRESET_COLORS[state.categories.length % PRESET_COLORS.length],
+            icon: '🏷️',
+            folderId: targetFolderId || null
+          };
+          state.categories.push(newCat);
+          targetCategoryId = newCat.id;
+          showToast(`Created new Category: "${parsed.categoryName}"`, 'info');
+        }
       }
     }
 
@@ -1172,8 +1404,8 @@
       id: 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       title: parsed.title,
       notes: '',
-      folderId: targetFolderId,
-      categoryId: targetCategoryId,
+      folderId: targetFolderId || null,
+      categoryId: targetCategoryId || null,
       priority: targetPriority,
       dueDate: targetDueDate,
       completed: false,
@@ -1302,8 +1534,19 @@
     dom.categoryPreviewPill.querySelector('.cat-pill-name').textContent = name;
   }
 
-  function openCategoryModal(existingCategory = null) {
+  function openCategoryModal(existingCategory = null, presetFolderId = null) {
     initCategoryModalUI();
+
+    // Populate Folder Select in Category Modal
+    if (dom.categoryFolderSelect) {
+      dom.categoryFolderSelect.innerHTML = '<option value="">None (No Folder / General)</option>';
+      state.folders.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.icon || '📁'} ${f.name}`;
+        dom.categoryFolderSelect.appendChild(opt);
+      });
+    }
 
     if (existingCategory) {
       dom.categoryModalTitle.textContent = 'Edit Category';
@@ -1311,12 +1554,18 @@
       dom.categoryNameInput.value = existingCategory.name;
       selectedModalColor = existingCategory.color || PRESET_COLORS[0];
       selectedModalIcon = existingCategory.icon || '🏷️';
+      if (dom.categoryFolderSelect) {
+        dom.categoryFolderSelect.value = existingCategory.folderId || '';
+      }
     } else {
       dom.categoryModalTitle.textContent = 'Create New Category';
       dom.editCategoryId.value = '';
       dom.categoryNameInput.value = '';
       selectedModalColor = PRESET_COLORS[state.categories.length % PRESET_COLORS.length];
       selectedModalIcon = '🏷️';
+      if (dom.categoryFolderSelect) {
+        dom.categoryFolderSelect.value = presetFolderId || state.entry.folderId || '';
+      }
     }
 
     updateCategoryModalSwatches();
@@ -1337,6 +1586,7 @@
     if (!name) return;
 
     const editId = dom.editCategoryId.value;
+    const selectedFolderId = dom.categoryFolderSelect ? (dom.categoryFolderSelect.value || null) : null;
 
     if (editId) {
       // Edit
@@ -1345,6 +1595,7 @@
         cat.name = name;
         cat.color = selectedModalColor;
         cat.icon = selectedModalIcon;
+        cat.folderId = selectedFolderId;
         showToast(`Category "${name}" updated`, 'success');
       }
     } else {
@@ -1353,10 +1604,14 @@
         id: 'cat-' + Date.now(),
         name: name,
         color: selectedModalColor,
-        icon: selectedModalIcon
+        icon: selectedModalIcon,
+        folderId: selectedFolderId
       };
       state.categories.push(newCat);
       state.entry.categoryId = newCat.id; // Switch quick-add chip to this new category
+      if (selectedFolderId) {
+        state.entry.folderId = selectedFolderId;
+      }
       showToast(`Created category "${name}"`, 'success');
     }
 
@@ -1367,29 +1622,24 @@
   }
 
   function confirmDeleteCategory(cat) {
-    if (state.categories.length <= 1) {
-      showToast('You must keep at least one category', 'warning');
-      return;
-    }
     const count = state.tasks.filter(t => t.categoryId === cat.id).length;
     const msg = count > 0 
-      ? `Are you sure you want to delete category "${cat.name}"? ${count} tasks using it will be moved to another category.`
+      ? `Are you sure you want to delete category "${cat.name}"? ${count} tasks using it will have no category.`
       : `Delete category "${cat.name}"?`;
 
     if (confirm(msg)) {
       state.categories = state.categories.filter(c => c.id !== cat.id);
-      // Migrate orphaned tasks to first available category
-      const fallbackCat = state.categories[0];
+      // Detach tasks rather than forcing a fallback
       state.tasks.forEach(t => {
         if (t.categoryId === cat.id) {
-          t.categoryId = fallbackCat.id;
+          t.categoryId = null;
         }
       });
       if (state.activeView.type === 'category' && state.activeView.id === cat.id) {
         state.activeView = { type: 'all', id: null };
       }
       if (state.entry.categoryId === cat.id) {
-        state.entry.categoryId = fallbackCat.id;
+        state.entry.categoryId = '';
       }
       saveState();
       SoundFX.delete();
@@ -1521,29 +1771,28 @@
   }
 
   function confirmDeleteFolder(folder) {
-    if (state.folders.length <= 1) {
-      showToast('You must keep at least one project folder', 'warning');
-      return;
-    }
-
     const count = state.tasks.filter(t => t.folderId === folder.id).length;
-    const msg = count > 0 
-      ? `Are you sure you want to delete folder "${folder.name}"? ${count} tasks will be moved to your primary folder.`
-      : `Delete folder "${folder.name}"?`;
+    const catCount = state.categories.filter(c => c.folderId === folder.id).length;
+    const msg = `Are you sure you want to delete folder "${folder.name}"? ${count} tasks and ${catCount} categories in it will be unassigned.`;
 
     if (confirm(msg)) {
       state.folders = state.folders.filter(f => f.id !== folder.id);
-      const fallback = state.folders[0];
+      // Detach child categories & tasks rather than deleting or forcing fallback
+      state.categories.forEach(c => {
+        if (c.folderId === folder.id) {
+          c.folderId = null;
+        }
+      });
       state.tasks.forEach(t => {
         if (t.folderId === folder.id) {
-          t.folderId = fallback.id;
+          t.folderId = null;
         }
       });
       if (state.activeView.type === 'folder' && state.activeView.id === folder.id) {
         state.activeView = { type: 'all', id: null };
       }
       if (state.entry.folderId === folder.id) {
-        state.entry.folderId = fallback.id;
+        state.entry.folderId = '';
       }
       saveState();
       SoundFX.delete();
@@ -1561,8 +1810,14 @@
     dom.editTaskTitleInput.value = task.title;
     dom.editTaskNotesInput.value = task.notes || '';
 
-    // Populate Folder options
+    // Populate Folder options (including None)
     dom.editTaskFolderSelect.innerHTML = '';
+    const noneFolderOpt = document.createElement('option');
+    noneFolderOpt.value = '';
+    noneFolderOpt.textContent = '📁 None (No Folder)';
+    if (!task.folderId) noneFolderOpt.selected = true;
+    dom.editTaskFolderSelect.appendChild(noneFolderOpt);
+
     state.folders.forEach(f => {
       const opt = document.createElement('option');
       opt.value = f.id;
@@ -1571,8 +1826,14 @@
       dom.editTaskFolderSelect.appendChild(opt);
     });
 
-    // Populate Category options
+    // Populate Category options (including None)
     dom.editTaskCategorySelect.innerHTML = '';
+    const noneCatOpt = document.createElement('option');
+    noneCatOpt.value = '';
+    noneCatOpt.textContent = '🏷️ None (No Category)';
+    if (!task.categoryId) noneCatOpt.selected = true;
+    dom.editTaskCategorySelect.appendChild(noneCatOpt);
+
     state.categories.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
@@ -1614,8 +1875,8 @@
 
     task.title = dom.editTaskTitleInput.value.trim();
     task.notes = dom.editTaskNotesInput.value.trim();
-    task.folderId = dom.editTaskFolderSelect.value;
-    task.categoryId = dom.editTaskCategorySelect.value;
+    task.folderId = dom.editTaskFolderSelect.value || null;
+    task.categoryId = dom.editTaskCategorySelect.value || null;
     task.priority = dom.editTaskPrioritySelect.value;
     task.dueDate = dom.editTaskDueDateInput.value;
 
@@ -1871,7 +2132,7 @@
 
     // New Folder / Category modal open buttons
     dom.openNewFolderModalBtn.addEventListener('click', () => openFolderModal());
-    dom.openNewCategoryModalBtn.addEventListener('click', () => openCategoryModal());
+    dom.openNewCategoryModalBtn.addEventListener('click', () => openCategoryModal(null, state.entry.folderId || null));
 
     // Category modal events
     dom.closeCategoryModalBtn.addEventListener('click', closeCategoryModal);
