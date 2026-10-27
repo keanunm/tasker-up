@@ -16,7 +16,7 @@
   <link rel="alternate icon" href="favicon.svg">
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.5">
+  <link rel="stylesheet" href="css/style.css?v=2.6">
 </head>
 <body class="theme-dark">
   <!-- Subtle ambient background glow -->
@@ -129,6 +129,10 @@
             <div class="view-tag" id="currentViewBadge">Folder</div>
             <!-- Project Collaboration Header Actions -->
             <div class="project-collab-header-actions" id="projectCollabHeaderActions" style="display: none;">
+              <button type="button" class="header-action-pill-btn toggle-collab-btn" id="toggleCollabBtn" title="Toggle collaboration for this project">
+                <span id="toggleCollabIcon">👥</span>
+                <span id="toggleCollabText">Enable Collab</span>
+              </button>
               <button type="button" class="header-action-pill-btn" id="viewHeaderInviteBtn" title="Invite Member to this project">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
                 <span>Invite Member</span>
@@ -885,6 +889,6 @@
   <!-- APPLICATION SCRIPTS -->
   <script src="js/firebase-config.js?v=2.3"></script>
   <script src="js/cloud-sync.js?v=2.5"></script>
-  <script src="js/app.js?v=2.5"></script>
+  <script src="js/app.js?v=2.6"></script>
 </body>
 </html>

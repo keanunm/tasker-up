@@ -655,12 +655,7 @@
 
   function isFolderCollaborative(folder) {
     if (!folder) return false;
-    return !!(
-      folder.isCollaborative ||
-      (folder.members && folder.members.length > 1) ||
-      folder.isJoined ||
-      folder.id === 'folder-alpha'
-    );
+    return folder.isCollaborative === true;
   }
 
   const PRESET_COLORS = [
@@ -694,9 +689,9 @@
       id: 'folder-alpha',
       name: 'Website Redesign',
       desc: 'Project Alpha redesign and frontend build',
-      color: COLLAB_PROJECT_COLOR,
+      color: '#6366f1',
       icon: '💻',
-      isCollaborative: true,
+      isCollaborative: false,
       createdAt: Date.now() - 25000000
     },
     {
@@ -923,21 +918,26 @@
         // Ensure folders have collaboration structures
         state.folders.forEach(f => ensureFolderCollaboration(f));
 
-        // Ensure at least one member-completed demo task for initial blue glow exploration
-        if (!state.tasks.some(t => t.memberCompleted)) {
-          const alphaTask = state.tasks.find(t => t.folderId === 'folder-alpha');
-          if (alphaTask) {
-            alphaTask.completed = true;
-            alphaTask.completedAt = Date.now() - 1800000;
-            alphaTask.completedBy = {
-              email: 'alex.dev@gmail.com',
-              name: 'Alex Rivera',
-              role: 'member',
-              at: Date.now() - 1800000
-            };
-            alphaTask.memberCompleted = true;
+        // Sanitize sample projects: remove unwanted default collaboration
+        state.folders.forEach(f => {
+          if (!f) return;
+          const isSample = ['folder-general', 'folder-alpha', 'folder-marketing', 'folder-personal'].includes(f.id);
+          const hasExternalMembers = Array.isArray(f.members) && f.members.some(m => m.role === 'member' && m.email && m.email !== 'alex.dev@gmail.com');
+          if (isSample && !hasExternalMembers && !f.isJoined) {
+            f.isCollaborative = false;
+            if (f.color === COLLAB_PROJECT_COLOR) {
+              f.color = '#6366f1';
+            }
           }
-        }
+        });
+
+        // Clean out fake demo tasks that had member activity glow
+        state.tasks.forEach(t => {
+          if (t && t.completedBy && t.completedBy.email === 'alex.dev@gmail.com') {
+            delete t.memberCompleted;
+            delete t.completedBy;
+          }
+        });
       } else {
         state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
         state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
@@ -1162,6 +1162,9 @@
     currentViewTitle: document.getElementById('currentViewTitle'),
     currentViewDescription: document.getElementById('currentViewDescription'),
     projectCollabHeaderActions: document.getElementById('projectCollabHeaderActions'),
+    toggleCollabBtn: document.getElementById('toggleCollabBtn'),
+    toggleCollabIcon: document.getElementById('toggleCollabIcon'),
+    toggleCollabText: document.getElementById('toggleCollabText'),
     viewHeaderInviteBtn: document.getElementById('viewHeaderInviteBtn'),
     viewHeaderChatBtn: document.getElementById('viewHeaderChatBtn'),
     viewHeaderChatCount: document.getElementById('viewHeaderChatCount'),
@@ -1666,22 +1669,44 @@
         if (dom.projectCollabHeaderActions) {
           dom.projectCollabHeaderActions.style.display = 'inline-flex';
         }
+        if (dom.toggleCollabBtn) {
+          if (isCollab) {
+            dom.toggleCollabBtn.classList.add('is-collab-active');
+            if (dom.toggleCollabIcon) dom.toggleCollabIcon.textContent = '🔒';
+            if (dom.toggleCollabText) dom.toggleCollabText.textContent = 'Turn Off Collab';
+            dom.toggleCollabBtn.title = 'Turn off collaboration for this project';
+          } else {
+            dom.toggleCollabBtn.classList.remove('is-collab-active');
+            if (dom.toggleCollabIcon) dom.toggleCollabIcon.textContent = '👥';
+            if (dom.toggleCollabText) dom.toggleCollabText.textContent = 'Enable Collab';
+            dom.toggleCollabBtn.title = 'Turn on collaboration for this project';
+          }
+        }
+        if (dom.viewHeaderInviteBtn) {
+          dom.viewHeaderInviteBtn.style.display = isCollab ? 'inline-flex' : 'none';
+        }
+        if (dom.viewHeaderChatBtn) {
+          dom.viewHeaderChatBtn.style.display = isCollab ? 'inline-flex' : 'none';
+        }
         if (dom.collaboratorAvatarStack) {
+          dom.collaboratorAvatarStack.style.display = isCollab ? 'inline-flex' : 'none';
           dom.collaboratorAvatarStack.innerHTML = '';
-          const maxAvatars = 4;
-          folder.members.slice(0, maxAvatars).forEach(m => {
-            const av = document.createElement('span');
-            av.className = 'stack-avatar';
-            av.style.backgroundColor = m.avatarColor || '#6366f1';
-            av.title = `${m.name} (${m.role})`;
-            av.textContent = m.name.charAt(0).toUpperCase();
-            dom.collaboratorAvatarStack.appendChild(av);
-          });
-          if (folder.members.length > maxAvatars) {
-            const more = document.createElement('span');
-            more.className = 'stack-avatar stack-more';
-            more.textContent = `+${folder.members.length - maxAvatars}`;
-            dom.collaboratorAvatarStack.appendChild(more);
+          if (isCollab && Array.isArray(folder.members)) {
+            const maxAvatars = 4;
+            folder.members.slice(0, maxAvatars).forEach(m => {
+              const av = document.createElement('span');
+              av.className = 'stack-avatar';
+              av.style.backgroundColor = m.avatarColor || '#6366f1';
+              av.title = `${m.name} (${m.role})`;
+              av.textContent = m.name.charAt(0).toUpperCase();
+              dom.collaboratorAvatarStack.appendChild(av);
+            });
+            if (folder.members.length > maxAvatars) {
+              const more = document.createElement('span');
+              more.className = 'stack-avatar stack-more';
+              more.textContent = `+${folder.members.length - maxAvatars}`;
+              dom.collaboratorAvatarStack.appendChild(more);
+            }
           }
         }
         if (dom.viewHeaderChatCount) {
@@ -2593,7 +2618,15 @@
         if (e.target.checked) {
           selectedModalColor = COLLAB_PROJECT_COLOR;
           updateFolderModalSwatches();
+          if (dom.folderCollabSection) dom.folderCollabSection.style.display = 'block';
           showToast('Special collaborative theme applied (#06b6d4 Electric Cyan)!', 'info');
+        } else {
+          if (selectedModalColor === COLLAB_PROJECT_COLOR) {
+            selectedModalColor = '#6366f1';
+          }
+          updateFolderModalSwatches();
+          if (dom.folderCollabSection) dom.folderCollabSection.style.display = 'none';
+          showToast('Collaboration turned off.', 'info');
         }
       };
     }
@@ -2635,7 +2668,12 @@
     const editId = dom.editFolderId.value;
 
     const isCollab = dom.folderIsCollabCheckbox ? dom.folderIsCollabCheckbox.checked : false;
-    const finalColor = isCollab ? COLLAB_PROJECT_COLOR : selectedModalColor;
+    let finalColor = selectedModalColor;
+    if (isCollab) {
+      finalColor = COLLAB_PROJECT_COLOR;
+    } else if (finalColor === COLLAB_PROJECT_COLOR) {
+      finalColor = '#6366f1';
+    }
 
     if (editId) {
       // Edit
@@ -2978,11 +3016,15 @@
   function ensureFolderCollaboration(folder) {
     if (!folder) return;
     if (!folder.name) folder.name = 'Unnamed Folder';
-    if (folder.isCollaborative === undefined) {
-      folder.isCollaborative = (folder.id === 'folder-alpha' || (folder.members && folder.members.length > 1) || !!folder.isJoined);
+    if (typeof folder.isCollaborative !== 'boolean') {
+      folder.isCollaborative = false;
     }
-    if (isFolderCollaborative(folder)) {
-      folder.color = COLLAB_PROJECT_COLOR;
+    if (folder.isCollaborative) {
+      if (!folder.color || folder.color === '#6366f1') {
+        folder.color = COLLAB_PROJECT_COLOR;
+      }
+    } else if (folder.color === COLLAB_PROJECT_COLOR) {
+      folder.color = '#6366f1';
     } else if (!folder.color) {
       folder.color = '#6366f1';
     }
@@ -3016,6 +3058,27 @@
       folder.chat = [];
     }
     folder.chat = folder.chat.filter(c => c.senderEmail !== 'alex.dev@gmail.com');
+  }
+
+  function toggleFolderCollaboration(folder) {
+    if (!folder) return;
+    const willBeCollab = !isFolderCollaborative(folder);
+    folder.isCollaborative = willBeCollab;
+
+    if (willBeCollab) {
+      folder.color = COLLAB_PROJECT_COLOR;
+      ensureFolderCollaboration(folder);
+      showToast(`👥 Collaboration enabled for "${folder.name}"!`, 'success');
+    } else {
+      if (folder.color === COLLAB_PROJECT_COLOR) {
+        folder.color = '#6366f1';
+      }
+      showToast(`🔒 Collaboration turned off for "${folder.name}".`, 'info');
+    }
+
+    saveState();
+    renderAll();
+    SoundFX.click();
   }
 
   function getActiveFolder() {
@@ -3963,6 +4026,14 @@
     });
 
     // Collaboration & Invite Modal Listeners
+    if (dom.toggleCollabBtn) {
+      dom.toggleCollabBtn.addEventListener('click', () => {
+        const activeFolder = getActiveFolder();
+        if (activeFolder) {
+          toggleFolderCollaboration(activeFolder);
+        }
+      });
+    }
     if (dom.viewHeaderInviteBtn) {
       dom.viewHeaderInviteBtn.addEventListener('click', () => {
         openInviteModal(getActiveFolder());
