@@ -3001,7 +3001,9 @@
   function deserializeProjectPackage(pkgStr) {
     if (!pkgStr) return null;
     try {
-      const json = decodeURIComponent(atob(pkgStr));
+      // Fix potential '+' converted to ' ' by query parsers
+      const normalized = pkgStr.replace(/ /g, '+');
+      const json = decodeURIComponent(atob(normalized));
       const payload = JSON.parse(json);
       if (!payload || !payload.f) return null;
       return payload;
@@ -3013,7 +3015,10 @@
 
   function generateProjectInviteLink(folder, role = 'member') {
     if (!folder) return window.location.href;
-    const base = window.location.origin + window.location.pathname;
+    let base = window.location.origin + window.location.pathname;
+    if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+      base = window.location.href.split('?')[0].split('#')[0];
+    }
     const params = new URLSearchParams();
     params.set('join', folder.id);
     params.set('name', folder.name);
@@ -3281,11 +3286,39 @@
     SoundFX.complete();
 
     const joinLink = generateProjectInviteLink(folder, role);
-    const subject = encodeURIComponent(`Invitation to collaborate on project: ${folder.name}`);
-    const body = encodeURIComponent(`Hi!\n\nI have invited you to collaborate on the project "${folder.name}" on Tasker Up!\n\nClick this link to join and access the project tasks:\n${joinLink}\n\nSee you there!`);
+    const subjectText = `Invitation to collaborate on project: ${folder.name}`;
+    const bodyText = `Hi!\n\nI have invited you to collaborate on the project "${folder.name}" on Tasker Up!\n\nClick this link to join and access the project tasks:\n${joinLink}\n\nSee you there!`;
+    const subject = encodeURIComponent(subjectText);
+    const body = encodeURIComponent(bodyText);
     const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
 
     showToast(`🎉 ${email} invited to "${folder.name}"!`, 'success');
+
+    // Display multi-channel delivery card
+    const successCard = document.getElementById('inviteSuccessCard');
+    if (successCard) {
+      successCard.style.display = 'block';
+      const successTitle = document.getElementById('inviteSuccessTitle');
+      const successDesc = document.getElementById('inviteSuccessDesc');
+      const gmailBtn = document.getElementById('openGmailInviteBtn');
+      const mailClientBtn = document.getElementById('openMailClientBtn');
+      const copyCardBtn = document.getElementById('copyInviteFromCardBtn');
+
+      if (successTitle) successTitle.textContent = `Invite prepared for ${email}!`;
+      if (successDesc) successDesc.textContent = `Send via Gmail web, default mail app, or copy join link:`;
+      if (gmailBtn) gmailBtn.href = gmailUrl;
+      if (mailClientBtn) mailClientBtn.href = mailtoUrl;
+      if (copyCardBtn) {
+        copyCardBtn.onclick = () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(joinLink).then(() => {
+              showToast('📋 Invite link copied to clipboard!', 'success');
+            });
+          }
+        };
+      }
+    }
 
     try {
       window.open(mailtoUrl, '_blank');
@@ -3499,7 +3532,7 @@
             avatarColor: '#f59e0b'
           }
         ],
-        chat: (projectPkg && projectPkg.chat) || [
+        chat: (projectPkg && projectPkg.chat && projectPkg.chat.length) ? projectPkg.chat : [
           {
             id: 'msg-' + Date.now(),
             isSystem: true,
@@ -3519,6 +3552,54 @@
 
     ensureFolderCollaboration(folder);
 
+    // Immediately import categories and tasks so the folder and tasks appear on screen right away!
+    const taskCount = (projectPkg && projectPkg.t) ? projectPkg.t.length : 0;
+    const catCount = (projectPkg && projectPkg.c) ? projectPkg.c.length : 0;
+
+    if (projectPkg && Array.isArray(projectPkg.c)) {
+      projectPkg.c.forEach(cat => {
+        const existingCat = state.categories.find(c => c.id === cat.id);
+        if (!existingCat) {
+          state.categories.push({
+            id: cat.id,
+            name: cat.name,
+            color: cat.color || COLLAB_PROJECT_COLOR,
+            icon: cat.icon || '🏷️',
+            folderId: folder.id
+          });
+        } else {
+          existingCat.folderId = folder.id;
+        }
+      });
+    }
+
+    if (projectPkg && Array.isArray(projectPkg.t)) {
+      projectPkg.t.forEach(t => {
+        const existingTask = state.tasks.find(x => x.id === t.id);
+        if (!existingTask) {
+          state.tasks.push({
+            id: t.id,
+            title: t.title,
+            notes: t.notes || '',
+            folderId: folder.id,
+            categoryId: t.catId || null,
+            priority: t.priority || 'normal',
+            dueDate: t.dueDate || null,
+            completed: !!t.completed,
+            completedAt: t.completedAt || null,
+            completedBy: t.completedBy || null,
+            memberCompleted: !!t.memberCompleted,
+            starred: !!t.starred,
+            createdAt: Date.now()
+          });
+        } else {
+          existingTask.folderId = folder.id;
+          existingTask.completed = !!t.completed;
+          existingTask.memberCompleted = !!t.memberCompleted;
+        }
+      });
+    }
+
     if (projectPkg && Array.isArray(projectPkg.chat)) {
       projectPkg.chat.forEach(msg => {
         if (!folder.chat.some(c => c.id === msg.id)) {
@@ -3526,6 +3607,12 @@
         }
       });
     }
+
+    // Switch view immediately to this project
+    state.activeView = { type: 'folder', id: folder.id };
+    state.entry.folderId = folder.id;
+    saveState();
+    renderAll();
 
     const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
     const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
@@ -3539,8 +3626,6 @@
     if (dom.acceptMemberNameInput) dom.acceptMemberNameInput.value = defaultName;
 
     // Display package summary if available
-    const taskCount = (projectPkg && projectPkg.t) ? projectPkg.t.length : 0;
-    const catCount = (projectPkg && projectPkg.c) ? projectPkg.c.length : 0;
     if (dom.acceptPkgDetails && dom.acceptPkgSummary) {
       if (taskCount > 0 || catCount > 0) {
         dom.acceptPkgDetails.style.display = 'block';
@@ -3579,52 +3664,6 @@
           });
         }
 
-        // IMPORT CATEGORIES from project package
-        if (projectPkg && Array.isArray(projectPkg.c)) {
-          projectPkg.c.forEach(cat => {
-            const existingCat = state.categories.find(c => c.id === cat.id);
-            if (!existingCat) {
-              state.categories.push({
-                id: cat.id,
-                name: cat.name,
-                color: cat.color || COLLAB_PROJECT_COLOR,
-                icon: cat.icon || '🏷️',
-                folderId: folder.id
-              });
-            } else {
-              existingCat.folderId = folder.id;
-            }
-          });
-        }
-
-        // IMPORT TASKS from project package
-        if (projectPkg && Array.isArray(projectPkg.t)) {
-          projectPkg.t.forEach(t => {
-            const existingTask = state.tasks.find(x => x.id === t.id);
-            if (!existingTask) {
-              state.tasks.push({
-                id: t.id,
-                title: t.title,
-                notes: t.notes || '',
-                folderId: folder.id,
-                categoryId: t.catId || null,
-                priority: t.priority || 'normal',
-                dueDate: t.dueDate || null,
-                completed: !!t.completed,
-                completedAt: t.completedAt || null,
-                completedBy: t.completedBy || null,
-                memberCompleted: !!t.memberCompleted,
-                starred: !!t.starred,
-                createdAt: Date.now()
-              });
-            } else {
-              existingTask.folderId = folder.id;
-              existingTask.completed = !!t.completed;
-              existingTask.memberCompleted = !!t.memberCompleted;
-            }
-          });
-        }
-
         localStorage.setItem('tasker_user_name', memberName);
         localStorage.setItem('tasker_user_email', memberEmail);
         localStorage.setItem('tasker_user_role', folderRole);
@@ -3649,24 +3688,59 @@
         showToast(`🎉 You joined "${folder.name}" with ${taskCount} tasks!`, 'success');
         SoundFX.complete();
 
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
+        try {
+          let cleanUrl = window.location.origin + window.location.pathname;
+          if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+            cleanUrl = window.location.href.split('?')[0].split('#')[0];
+          }
+          window.history.replaceState({}, document.title, cleanUrl);
+        } catch (e) {}
       };
     }
 
     if (declineBtn) {
       declineBtn.onclick = () => {
         if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
+        try {
+          let cleanUrl = window.location.origin + window.location.pathname;
+          if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+            cleanUrl = window.location.href.split('?')[0].split('#')[0];
+          }
+          window.history.replaceState({}, document.title, cleanUrl);
+        } catch (e) {}
       };
     }
   }
 
   function handleSharedProjectIncomingSync(folderId, cloudData) {
-    if (!cloudData || !folderId) return;
-    const folder = state.folders.find(f => f.id === folderId);
-    if (!folder) return;
+    if (!cloudData || !folderId || !cloudData.folder) return;
+    let folder = state.folders.find(f => f.id === folderId);
+    const isNew = !folder;
+
+    if (isNew) {
+      folder = {
+        id: folderId,
+        name: cloudData.folder.name || 'Shared Project',
+        desc: cloudData.folder.desc || '',
+        icon: cloudData.folder.icon || '📁',
+        color: COLLAB_PROJECT_COLOR,
+        hostEmail: cloudData.folder.hostEmail || 'host@taskerup.io',
+        isCollaborative: true,
+        isJoined: true,
+        members: cloudData.folder.members || [],
+        chat: cloudData.folder.chat || []
+      };
+      state.folders.push(folder);
+      showToast(`📁 Joined collaborative project "${folder.name}"!`, 'info');
+    } else {
+      folder.isCollaborative = true;
+      folder.color = COLLAB_PROJECT_COLOR;
+      if (cloudData.folder.name) folder.name = cloudData.folder.name;
+      if (cloudData.folder.desc !== undefined) folder.desc = cloudData.folder.desc;
+      if (cloudData.folder.icon) folder.icon = cloudData.folder.icon;
+      if (cloudData.folder.members) folder.members = cloudData.folder.members;
+      if (cloudData.folder.chat) folder.chat = cloudData.folder.chat;
+    }
 
     if (cloudData.folder) {
       if (cloudData.folder.name) folder.name = cloudData.folder.name;
@@ -4176,16 +4250,64 @@
       };
     });
 
+    window.addEventListener('tasker:shared-project-update', (e) => {
+      const { folderId, data } = e.detail;
+      if (!folderId || !data) return;
+      handleSharedProjectIncomingSync(folderId, data);
+    });
+
     window.addEventListener('tasker:remote-update', (e) => {
       const { folders, categories, tasks } = e.detail;
       if (folders && Array.isArray(folders) && folders.length) {
-        state.folders = folders;
+        // Preserve any collaborative or joined projects currently loaded
+        const collabFolders = state.folders.filter(f => f && (f.isCollaborative || f.isJoined));
+        const mergedFolders = [...folders];
+        collabFolders.forEach(cf => {
+          const idx = mergedFolders.findIndex(f => f.id === cf.id);
+          if (idx === -1) {
+            mergedFolders.push(cf);
+          } else {
+            mergedFolders[idx].isCollaborative = cf.isCollaborative;
+            mergedFolders[idx].isJoined = cf.isJoined;
+            if (cf.members && cf.members.length) mergedFolders[idx].members = cf.members;
+            if (cf.chat && cf.chat.length) mergedFolders[idx].chat = cf.chat;
+          }
+        });
+        state.folders = mergedFolders;
       }
       if (categories && Array.isArray(categories) && categories.length) {
-        state.categories = categories;
+        const collabCatIds = new Set(
+          state.folders.filter(f => f && (f.isCollaborative || f.isJoined)).map(f => f.id)
+        );
+        const collabCats = state.categories.filter(c => c && collabCatIds.has(c.folderId));
+        const mergedCats = [...categories];
+        collabCats.forEach(cc => {
+          if (!mergedCats.some(c => c.id === cc.id)) {
+            mergedCats.push(cc);
+          }
+        });
+        state.categories = mergedCats;
       }
       if (tasks && Array.isArray(tasks)) {
-        state.tasks = tasks;
+        const collabFolderIds = new Set(
+          state.folders.filter(f => f && (f.isCollaborative || f.isJoined)).map(f => f.id)
+        );
+        const collabTasks = state.tasks.filter(t => t && collabFolderIds.has(t.folderId));
+        const mergedTasks = [...tasks];
+        collabTasks.forEach(ct => {
+          const existingIdx = mergedTasks.findIndex(t => t.id === ct.id);
+          if (existingIdx === -1) {
+            mergedTasks.push(ct);
+          } else {
+            if (ct.memberCompleted) {
+              mergedTasks[existingIdx].memberCompleted = true;
+              mergedTasks[existingIdx].completed = ct.completed;
+              mergedTasks[existingIdx].completedBy = ct.completedBy;
+              mergedTasks[existingIdx].completedAt = ct.completedAt;
+            }
+          }
+        });
+        state.tasks = mergedTasks;
       }
       saveState(true);
       renderAll();

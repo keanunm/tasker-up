@@ -123,6 +123,7 @@
     if (user) {
       updateUIUserLoggedIn(user);
       startFirestoreSync(user);
+      startSharedProjectsDiscovery(user);
       showToast(`👋 Welcome, ${user.displayName || user.email}!`, 'success');
     } else {
       stopFirestoreSync();
@@ -189,6 +190,10 @@
     if (unsubscribeSnapshot) {
       unsubscribeSnapshot();
       unsubscribeSnapshot = null;
+    }
+    if (unsubscribeSharedProjects) {
+      unsubscribeSharedProjects();
+      unsubscribeSharedProjects = null;
     }
   }
 
@@ -639,6 +644,17 @@
         folderId: folder.id
       }));
 
+      // Build lowercase member emails list for query discovery
+      const memberEmails = (folder.members || [])
+        .map(m => m.email ? m.email.trim().toLowerCase() : '')
+        .filter(Boolean);
+      if (folder.hostEmail && !memberEmails.includes(folder.hostEmail.toLowerCase())) {
+        memberEmails.push(folder.hostEmail.toLowerCase());
+      }
+      if (currentUser && currentUser.email && !memberEmails.includes(currentUser.email.toLowerCase())) {
+        memberEmails.push(currentUser.email.toLowerCase());
+      }
+
       await docRef.set({
         folder: {
           id: folder.id,
@@ -646,12 +662,13 @@
           desc: folder.desc || '',
           icon: folder.icon || '📁',
           color: folder.color || '#06b6d4',
-          hostEmail: folder.hostEmail || 'host@taskerup.io',
+          hostEmail: folder.hostEmail || (currentUser ? currentUser.email : 'host@taskerup.io'),
           isCollaborative: true,
           members: folder.members || [],
           chat: folder.chat || [],
           updatedAt: Date.now()
         },
+        memberEmails: memberEmails,
         tasks: safeTasks,
         categories: safeCats,
         updatedAt: Date.now(),
@@ -659,6 +676,45 @@
       }, { merge: true });
     } catch (err) {
       console.warn('syncCollaborativeProject failed', err);
+    }
+  }
+
+  let unsubscribeSharedProjects = null;
+
+  function startSharedProjectsDiscovery(user) {
+    if (!db || !user || !user.email) return;
+    if (unsubscribeSharedProjects) {
+      unsubscribeSharedProjects();
+      unsubscribeSharedProjects = null;
+    }
+
+    const email = user.email.toLowerCase().trim();
+
+    try {
+      unsubscribeSharedProjects = db.collection('shared_projects')
+        .where('memberEmails', 'array-contains', email)
+        .onSnapshot((snapshot) => {
+          if (!snapshot) return;
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              const data = change.doc.data();
+              if (data && data.folder) {
+                window.dispatchEvent(
+                  new CustomEvent('tasker:shared-project-update', {
+                    detail: {
+                      folderId: change.doc.id,
+                      data: data
+                    }
+                  })
+                );
+              }
+            }
+          });
+        }, (err) => {
+          console.debug('Shared projects discovery note:', err.message);
+        });
+    } catch (err) {
+      console.warn('startSharedProjectsDiscovery error', err);
     }
   }
 

@@ -16,7 +16,7 @@
   <link rel="alternate icon" href="favicon.svg">
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.7">
+  <link rel="stylesheet" href="css/style.css?v=2.8">
 </head>
 <body class="theme-dark">
   <!-- Subtle ambient background glow -->
@@ -762,6 +762,31 @@
           </button>
         </form>
 
+        <!-- Invite Success / Send Options Card -->
+        <div class="invite-success-card" id="inviteSuccessCard" style="display: none;">
+          <div class="invite-success-header">
+            <span class="invite-success-icon">✉️</span>
+            <div>
+              <strong id="inviteSuccessTitle">Invite Ready!</strong>
+              <p id="inviteSuccessDesc" style="margin: 0; font-size: 0.76rem; color: var(--text-dim);">Choose how to deliver the invitation:</p>
+            </div>
+          </div>
+          <div class="invite-send-options-row">
+            <a href="#" target="_blank" class="invite-option-btn gmail-btn" id="openGmailInviteBtn" title="Compose in Gmail Web">
+              <span class="btn-icon">📬</span>
+              <span>Open in Gmail Web</span>
+            </a>
+            <a href="#" class="invite-option-btn mail-client-btn" id="openMailClientBtn" title="Open Default Mail App">
+              <span class="btn-icon">✉️</span>
+              <span>Mail App</span>
+            </a>
+            <button type="button" class="invite-option-btn copy-btn" id="copyInviteFromCardBtn" title="Copy Join Link">
+              <span class="btn-icon">📋</span>
+              <span>Copy Link</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Current Project Members List with Host Kick Privileges -->
         <div class="project-members-section">
           <div class="members-header">
@@ -888,7 +913,7 @@
 
   <!-- APPLICATION SCRIPTS -->
   <script src="js/firebase-config.js?v=2.3"></script>
-  <script src="js/cloud-sync.js?v=2.5"></script>
-  <script src="js/app.js?v=2.7"></script>
+  <script src="js/cloud-sync.js?v=2.8"></script>
+  <script src="js/app.js?v=2.8"></script>
 </body>
 </html>
