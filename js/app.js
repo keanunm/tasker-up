@@ -1729,7 +1729,12 @@
       }
     }
 
-    if (state.activeView.type === 'folder' && isFolderCollaborative(state.folders.find(f => f.id === state.activeView.id))) {
+    const currentFolder = (state.activeView && state.activeView.type === 'folder')
+      ? state.folders.find(f => f.id === state.activeView.id)
+      : null;
+    const isCollabFolder = currentFolder && isFolderCollaborative(currentFolder);
+
+    if (isCollabFolder) {
       dom.currentViewBadge.className = 'view-tag collab-view-badge';
       dom.currentViewBadge.innerHTML = '<span class="collab-pulse-dot"></span><span>COLLABORATIVE PROJECT</span>';
     } else {
@@ -1738,6 +1743,25 @@
     }
     dom.currentViewTitle.textContent = title;
     dom.currentViewDescription.textContent = desc;
+
+    // Small Floating Project Chat Widget visibility:
+    // ONLY display if actively viewing a collaborative project!
+    if (dom.projectChatWidget) {
+      if (isCollabFolder) {
+        dom.projectChatWidget.style.display = 'flex';
+        if (state.isChatOpen) {
+          if (dom.chatWindow) dom.chatWindow.style.display = 'flex';
+          if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'none';
+        } else {
+          if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+          if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'inline-flex';
+        }
+      } else {
+        dom.projectChatWidget.style.display = 'none';
+        if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+        state.isChatOpen = false;
+      }
+    }
 
     // Active filter tags strip
     dom.activeFilterTags.innerHTML = '';
@@ -3073,6 +3097,9 @@
       if (folder.color === COLLAB_PROJECT_COLOR) {
         folder.color = '#6366f1';
       }
+      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+      state.isChatOpen = false;
       showToast(`🔒 Collaboration turned off for "${folder.name}".`, 'info');
     }
 
@@ -3082,12 +3109,12 @@
   }
 
   function getActiveFolder() {
-    if (state.activeCollabFolderId) {
-      const folder = state.folders.find(f => f.id === state.activeCollabFolderId);
-      if (folder) return folder;
-    }
     if (state.activeView && state.activeView.type === 'folder' && state.activeView.id) {
       const folder = state.folders.find(f => f.id === state.activeView.id);
+      if (folder) return folder;
+    }
+    if (state.activeCollabFolderId) {
+      const folder = state.folders.find(f => f.id === state.activeCollabFolderId);
       if (folder) return folder;
     }
     if (state.entry && state.entry.folderId) {
@@ -3306,7 +3333,12 @@
 
   function toggleProjectChat(forceOpen = null, folder = null) {
     if (!folder) folder = getActiveFolder();
-    if (!folder) return;
+    if (!folder || !isFolderCollaborative(folder)) {
+      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+      state.isChatOpen = false;
+      return;
+    }
     ensureFolderCollaboration(folder);
 
     state.activeCollabFolderId = folder.id;
