@@ -4243,10 +4243,11 @@
 
     // Cloud Sync event bridges
     window.addEventListener('tasker:get-workspace', (e) => {
+      // Use JSON serialize/parse to strip any stray undefined keys before cloud dispatch
       e.detail.data = {
-        folders: state.folders,
-        categories: state.categories,
-        tasks: state.tasks
+        folders: JSON.parse(JSON.stringify(state.folders || [])),
+        categories: JSON.parse(JSON.stringify(state.categories || [])),
+        tasks: JSON.parse(JSON.stringify(state.tasks || []))
       };
     });
 

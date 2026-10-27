@@ -200,6 +200,30 @@
   /**
    * Upload local tasks to Google Cloud Firestore
    */
+  /**
+   * Deeply sanitizes an object or array for Cloud Firestore,
+   * completely removing all keys with `undefined` values and converting standalone undefined to null.
+   */
+  function sanitizeForFirestore(val) {
+    if (val === undefined) return null;
+    if (val === null || typeof val !== 'object') return val;
+    // Preserve Firestore FieldValue instances (e.g. serverTimestamp)
+    if (typeof val === 'object' && val.isEqual && typeof val.isEqual === 'function') return val;
+    if (Array.isArray(val)) {
+      return val
+        .filter(item => item !== undefined)
+        .map(item => sanitizeForFirestore(item));
+    }
+    const clean = {};
+    for (const key of Object.keys(val)) {
+      const v = val[key];
+      if (v !== undefined) {
+        clean[key] = sanitizeForFirestore(v);
+      }
+    }
+    return clean;
+  }
+
   async function uploadCurrentWorkspaceToCloud(isInitial = false) {
     if (!db || !currentUser) return;
 
@@ -218,12 +242,16 @@
 
       const docRef = db.collection('users').doc(currentUser.uid).collection('workspace').doc('main');
 
+      const cleanTasks = sanitizeForFirestore(payload.tasks || []);
+      const cleanFolders = sanitizeForFirestore(payload.folders || []);
+      const cleanCategories = sanitizeForFirestore(payload.categories || []);
+
       await docRef.set({
-        tasks: payload.tasks || [],
-        folders: payload.folders || [],
-        categories: payload.categories || [],
+        tasks: cleanTasks,
+        folders: cleanFolders,
+        categories: cleanCategories,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        deviceInfo: navigator.userAgent
+        deviceInfo: navigator.userAgent || 'web'
       }, { merge: true });
 
       lastSyncedTimestamp = Date.now();
@@ -655,22 +683,28 @@
         memberEmails.push(currentUser.email.toLowerCase());
       }
 
+      const cleanFolder = sanitizeForFirestore({
+        id: folder.id,
+        name: folder.name || 'Shared Project',
+        desc: folder.desc || '',
+        icon: folder.icon || '📁',
+        color: folder.color || '#06b6d4',
+        hostEmail: folder.hostEmail || (currentUser ? currentUser.email : 'host@taskerup.io'),
+        isCollaborative: true,
+        members: folder.members || [],
+        chat: folder.chat || [],
+        updatedAt: Date.now()
+      });
+
+      const cleanMemberEmails = sanitizeForFirestore(memberEmails);
+      const cleanTasks = sanitizeForFirestore(safeTasks);
+      const cleanCats = sanitizeForFirestore(safeCats);
+
       await docRef.set({
-        folder: {
-          id: folder.id,
-          name: folder.name,
-          desc: folder.desc || '',
-          icon: folder.icon || '📁',
-          color: folder.color || '#06b6d4',
-          hostEmail: folder.hostEmail || (currentUser ? currentUser.email : 'host@taskerup.io'),
-          isCollaborative: true,
-          members: folder.members || [],
-          chat: folder.chat || [],
-          updatedAt: Date.now()
-        },
-        memberEmails: memberEmails,
-        tasks: safeTasks,
-        categories: safeCats,
+        folder: cleanFolder,
+        memberEmails: cleanMemberEmails,
+        tasks: cleanTasks,
+        categories: cleanCats,
         updatedAt: Date.now(),
         updatedBy: currentUser ? (currentUser.displayName || currentUser.email) : 'user'
       }, { merge: true });
