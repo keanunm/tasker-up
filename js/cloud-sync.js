@@ -293,15 +293,26 @@
     }
   }
 
-  function queueCloudSave(payload) {
+  function queueCloudSave(payload, immediate = false) {
     if (!currentUser || !db) return;
 
     updateUIStatus('syncing', 'Syncing...');
     clearTimeout(saveDebounceTimer);
-    saveDebounceTimer = setTimeout(() => {
+    if (immediate) {
       uploadCurrentWorkspaceToCloud(false);
-    }, 700);
+    } else {
+      saveDebounceTimer = setTimeout(() => {
+        uploadCurrentWorkspaceToCloud(false);
+      }, 700);
+    }
   }
+
+  window.addEventListener('beforeunload', () => {
+    if (saveDebounceTimer) {
+      clearTimeout(saveDebounceTimer);
+      uploadCurrentWorkspaceToCloud(false);
+    }
+  });
 
   // ==========================================
   // 4. GOOGLE SIGN-IN ACTION
@@ -747,6 +758,19 @@
             if (change.type === 'added' || change.type === 'modified') {
               const data = change.doc.data();
               if (data && data.folder) {
+                // If marked deleted or closed, dispatch removed event immediately
+                const isDocDead = data.isDeleted || (data.folder && data.folder.isDeleted) || data.isClosed || (data.folder && data.folder.isClosed) || data.isCollaborative === false || (data.folder && data.folder.isCollaborative === false);
+                if (isDocDead) {
+                  window.dispatchEvent(
+                    new CustomEvent('tasker:shared-project-removed', {
+                      detail: {
+                        folderId: change.doc.id
+                      }
+                    })
+                  );
+                  return;
+                }
+
                 window.dispatchEvent(
                   new CustomEvent('tasker:shared-project-update', {
                     detail: {
@@ -813,26 +837,30 @@
   async function unshareCollaborativeProject(folderId, folderName) {
     if (!db || !folderId) return;
     try {
+      if (activeCollabListeners[folderId]) {
+        try { activeCollabListeners[folderId](); } catch (e) {}
+        delete activeCollabListeners[folderId];
+      }
       const docRef = db.collection('shared_projects').doc(folderId);
       await docRef.set({
         isCollaborative: false,
         isClosed: true,
+        isDeleted: true,
         memberEmails: [],
         folder: {
           id: folderId,
           name: folderName || 'Shared Project',
           isCollaborative: false,
           isClosed: true,
+          isDeleted: true,
           members: []
         },
         updatedAt: Date.now()
       }, { merge: true });
 
-      setTimeout(async () => {
-        try {
-          await docRef.delete();
-        } catch (e) {}
-      }, 500);
+      try {
+        await docRef.delete();
+      } catch (e) {}
     } catch (err) {
       console.warn('unshareCollaborativeProject failed', err);
     }
@@ -841,26 +869,30 @@
   async function deleteCollaborativeProject(folderId, folderName) {
     if (!db || !folderId) return;
     try {
+      if (activeCollabListeners[folderId]) {
+        try { activeCollabListeners[folderId](); } catch (e) {}
+        delete activeCollabListeners[folderId];
+      }
       const docRef = db.collection('shared_projects').doc(folderId);
       await docRef.set({
         isCollaborative: false,
         isDeleted: true,
+        isClosed: true,
         memberEmails: [],
         folder: {
           id: folderId,
           name: folderName || 'Shared Project',
           isCollaborative: false,
           isDeleted: true,
+          isClosed: true,
           members: []
         },
         updatedAt: Date.now()
       }, { merge: true });
 
-      setTimeout(async () => {
-        try {
-          await docRef.delete();
-        } catch (e) {}
-      }, 500);
+      try {
+        await docRef.delete();
+      } catch (e) {}
     } catch (err) {
       console.warn('deleteCollaborativeProject failed', err);
     }

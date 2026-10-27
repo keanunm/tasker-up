@@ -975,15 +975,52 @@
   };
 
   // ==========================================
-  // 4. STORAGE HELPERS
+  // 4. STORAGE HELPERS & DELETED FOLDERS TOMBSTONES
   // ==========================================
+  const DELETED_FOLDERS_KEY = 'tasker_deleted_folder_ids';
+
+  function markFolderAsDeleted(folderId) {
+    if (!folderId) return;
+    try {
+      const stored = localStorage.getItem(DELETED_FOLDERS_KEY);
+      const list = stored ? JSON.parse(stored) : [];
+      if (!list.includes(folderId)) {
+        list.push(folderId);
+        localStorage.setItem(DELETED_FOLDERS_KEY, JSON.stringify(list));
+      }
+    } catch (e) {}
+  }
+
+  function isFolderDeleted(folderId) {
+    if (!folderId) return false;
+    try {
+      const stored = localStorage.getItem(DELETED_FOLDERS_KEY);
+      const list = stored ? JSON.parse(stored) : [];
+      return list.includes(folderId);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function unmarkFolderAsDeleted(folderId) {
+    if (!folderId) return;
+    try {
+      const stored = localStorage.getItem(DELETED_FOLDERS_KEY);
+      const list = stored ? JSON.parse(stored) : [];
+      const updated = list.filter(id => id !== folderId);
+      localStorage.setItem(DELETED_FOLDERS_KEY, JSON.stringify(updated));
+    } catch (e) {}
+  }
+
   function loadInitialState() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        state.folders = parsed.folders && parsed.folders.length ? parsed.folders : DEFAULT_FOLDERS;
-        state.categories = parsed.categories && parsed.categories.length ? parsed.categories : DEFAULT_CATEGORIES;
+        state.folders = Array.isArray(parsed.folders)
+          ? parsed.folders.filter(f => f && !isFolderDeleted(f.id))
+          : DEFAULT_FOLDERS.filter(f => !isFolderDeleted(f.id));
+        state.categories = Array.isArray(parsed.categories) ? parsed.categories : DEFAULT_CATEGORIES;
         state.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
 
         // Ensure categories have folderId property assigned
@@ -1021,7 +1058,7 @@
           }
         });
       } else {
-        state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
+        state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS)).filter(f => !isFolderDeleted(f.id));
         state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
         state.tasks = [];
         state.folders.forEach(f => {
@@ -1032,7 +1069,7 @@
       }
     } catch (err) {
       console.error('Failed to load state from localStorage', err);
-      state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
+      state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS)).filter(f => !isFolderDeleted(f.id));
       state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
       state.tasks = [];
     }
@@ -1056,7 +1093,7 @@
     }
   }
 
-  function saveState(skipCloud = false) {
+  function saveState(skipCloud = false, immediateCloud = false) {
     try {
       const payload = {
         folders: state.folders,
@@ -1067,7 +1104,7 @@
 
       if (!skipCloud && window.CloudSync) {
         if (typeof window.CloudSync.queueCloudSave === 'function') {
-          window.CloudSync.queueCloudSave(payload);
+          window.CloudSync.queueCloudSave(payload, immediateCloud);
         }
         if (typeof window.CloudSync.syncCollaborativeProject === 'function') {
           state.folders.forEach(f => {
@@ -2436,7 +2473,7 @@
       SoundFX.uncomplete();
     }
 
-    saveState();
+    saveState(false, true);
     renderAll();
   }
 
@@ -2842,13 +2879,14 @@
         createdAt: Date.now()
       };
       if (isCollab) ensureFolderCollaboration(newFolder);
+      unmarkFolderAsDeleted(newFolder.id);
       state.folders.push(newFolder);
       state.entry.folderId = newFolder.id; // Set current quick-add folder
       state.activeView = { type: 'folder', id: newFolder.id }; // Switch view to new project
       showToast(`Created project folder "${name}"`, 'success');
     }
 
-    saveState();
+    saveState(false, true);
     closeFolderModal();
     SoundFX.add();
     renderAll();
@@ -2863,8 +2901,10 @@
       : `Are you sure you want to delete folder "${folder.name}"? ${count} tasks and ${catCount} categories in it will be unassigned.`;
 
     if (confirm(msg)) {
-      // If collaborative: delete from cloud and kick everyone out immediately
-      if (isCollab && window.CloudSync && typeof window.CloudSync.deleteCollaborativeProject === 'function') {
+      markFolderAsDeleted(folder.id);
+
+      // ALWAYS delete collaborative project from cloud (even if collab was turned off right before)
+      if (window.CloudSync && typeof window.CloudSync.deleteCollaborativeProject === 'function') {
         window.CloudSync.deleteCollaborativeProject(folder.id, folder.name);
       }
 
@@ -2890,12 +2930,12 @@
         state.isChatOpen = false;
         if (dom.chatWindow) dom.chatWindow.style.display = 'none';
         if (dom.projectChatWidget) {
-        dom.projectChatWidget.style.display = 'none';
-        dom.projectChatWidget.classList.remove('is-visible');
-      }
+          dom.projectChatWidget.style.display = 'none';
+          dom.projectChatWidget.classList.remove('is-visible');
+        }
       }
 
-      saveState();
+      saveState(false, true);
       SoundFX.delete();
       showToast(`Deleted folder "${folder.name}". All members have been removed.`, 'info');
       renderAll();
@@ -3263,7 +3303,7 @@
       showToast(`🔒 Collaboration turned off for "${folder.name}". All members have been removed.`, 'info');
     }
 
-    saveState();
+    saveState(false, true);
     renderAll();
   }
 
@@ -3293,7 +3333,7 @@
     folder.color = COLLAB_PROJECT_COLOR;
     state.activeCollabFolderId = folder.id;
     ensureFolderCollaboration(folder);
-    saveState();
+    saveState(false, true);
     renderAll();
 
     if (dom.inviteModalTitle) {
@@ -3853,7 +3893,7 @@
     // Switch view immediately to this project
     state.activeView = { type: 'folder', id: folder.id };
     state.entry.folderId = folder.id;
-    saveState();
+    saveState(false, true);
     renderAll();
 
     if (dom.acceptProjectTitle) dom.acceptProjectTitle.textContent = `Join "${folder.name}"`;
@@ -3995,10 +4035,27 @@
   function handleSharedProjectIncomingSync(folderId, cloudData) {
     if (!cloudData || !folderId || !cloudData.folder) return;
 
+    // 1. If user explicitly deleted this folder locally, NEVER recreate or resurrect it!
+    if (isFolderDeleted(folderId)) {
+      return;
+    }
+
     const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
     const myEmail = ((curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '').toLowerCase().trim();
     const hostEmail = (cloudData.folder.hostEmail || '').toLowerCase().trim();
-    const isMeHost = myEmail && hostEmail && (myEmail === hostEmail);
+    const isMeHost = (myEmail && hostEmail && myEmail === hostEmail) || (!cloudData.folder.hostEmail);
+
+    let localFolder = state.folders.find(f => f.id === folderId);
+
+    // 2. If user explicitly turned off collaboration on this folder locally: DO NOT RE-ENABLE COLLABORATION!
+    if (localFolder && localFolder.isCollaborative === false) {
+      return;
+    }
+
+    // 3. If folder does NOT exist locally and current user is host: DO NOT resurrect deleted host folders!
+    if (!localFolder && isMeHost) {
+      return;
+    }
 
     // Check if current user was kicked out of this collaborative folder
     const kickedEmails = [
@@ -4036,6 +4093,11 @@
         revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
         return;
       }
+    }
+
+    // If project in cloud is dead or not collaborative, do NOT resurrect anything
+    if (!localFolder && isCloudUnshared) {
+      return;
     }
 
     const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder && cloudData.folder.isCollaborative));
@@ -4731,42 +4793,61 @@
 
     window.addEventListener('tasker:remote-update', (e) => {
       const { folders, categories, tasks } = e.detail;
-      if (folders && Array.isArray(folders) && folders.length) {
-        // Preserve any collaborative or joined projects currently loaded
-        const collabFolders = state.folders.filter(f => f && (f.isCollaborative || f.isJoined));
-        const mergedFolders = [...folders];
+      if (folders && Array.isArray(folders)) {
+        // Filter out any folders the user deleted locally!
+        const validRemoteFolders = folders.filter(f => f && !isFolderDeleted(f.id));
+        const collabFolders = state.folders.filter(f => f && (f.isCollaborative || f.isJoined) && !isFolderDeleted(f.id));
+        const mergedFolders = [...validRemoteFolders];
         collabFolders.forEach(cf => {
           const idx = mergedFolders.findIndex(f => f.id === cf.id);
           if (idx === -1) {
             mergedFolders.push(cf);
           } else {
-            mergedFolders[idx].isCollaborative = cf.isCollaborative;
+            // Keep local non-collaborative setting if user turned it off locally
+            if (cf.isCollaborative === false) {
+              mergedFolders[idx].isCollaborative = false;
+              if (mergedFolders[idx].color === COLLAB_PROJECT_COLOR) mergedFolders[idx].color = '#6366f1';
+            } else {
+              mergedFolders[idx].isCollaborative = cf.isCollaborative;
+            }
             mergedFolders[idx].isJoined = cf.isJoined;
             if (cf.members && cf.members.length) mergedFolders[idx].members = cf.members;
             if (cf.chat && cf.chat.length) mergedFolders[idx].chat = cf.chat;
           }
         });
-        state.folders = mergedFolders;
+
+        // Ensure any local folder where user disabled collaboration stays non-collaborative
+        mergedFolders.forEach(mf => {
+          const localMatch = state.folders.find(lf => lf.id === mf.id);
+          if (localMatch && localMatch.isCollaborative === false) {
+            mf.isCollaborative = false;
+            if (mf.color === COLLAB_PROJECT_COLOR) mf.color = '#6366f1';
+          }
+        });
+
+        state.folders = mergedFolders.filter(f => !isFolderDeleted(f.id));
       }
-      if (categories && Array.isArray(categories) && categories.length) {
+      if (categories && Array.isArray(categories)) {
+        const validCategories = categories.filter(c => c && !isFolderDeleted(c.folderId));
         const collabCatIds = new Set(
-          state.folders.filter(f => f && (f.isCollaborative || f.isJoined)).map(f => f.id)
+          state.folders.filter(f => f && (f.isCollaborative || f.isJoined) && !isFolderDeleted(f.id)).map(f => f.id)
         );
         const collabCats = state.categories.filter(c => c && collabCatIds.has(c.folderId));
-        const mergedCats = [...categories];
+        const mergedCats = [...validCategories];
         collabCats.forEach(cc => {
           if (!mergedCats.some(c => c.id === cc.id)) {
             mergedCats.push(cc);
           }
         });
-        state.categories = mergedCats;
+        state.categories = mergedCats.filter(c => c && !isFolderDeleted(c.folderId));
       }
       if (tasks && Array.isArray(tasks)) {
+        const validTasks = tasks.filter(t => t && !isFolderDeleted(t.folderId));
         const collabFolderIds = new Set(
-          state.folders.filter(f => f && (f.isCollaborative || f.isJoined)).map(f => f.id)
+          state.folders.filter(f => f && (f.isCollaborative || f.isJoined) && !isFolderDeleted(f.id)).map(f => f.id)
         );
         const collabTasks = state.tasks.filter(t => t && collabFolderIds.has(t.folderId));
-        const mergedTasks = [...tasks];
+        const mergedTasks = [...validTasks];
         collabTasks.forEach(ct => {
           const existingIdx = mergedTasks.findIndex(t => t.id === ct.id);
           if (existingIdx === -1) {
@@ -4780,7 +4861,7 @@
             }
           }
         });
-        state.tasks = mergedTasks;
+        state.tasks = mergedTasks.filter(t => t && !isFolderDeleted(t.folderId));
       }
       saveState(true);
       renderAll();
