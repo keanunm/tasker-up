@@ -780,6 +780,13 @@
       const unsub = db.collection('shared_projects').doc(folderId).onSnapshot((doc) => {
         if (doc && doc.exists) {
           callback(doc.data());
+        } else {
+          // Document deleted from Firestore: kick all listening members
+          callback({
+            isDeleted: true,
+            isCollaborative: false,
+            folder: { id: folderId, isDeleted: true, isCollaborative: false }
+          });
         }
       }, (err) => {
         console.warn('Collaborative project snapshot error for', folderId, err);
@@ -789,6 +796,62 @@
     } catch (err) {
       console.warn('listenToCollaborativeProject setup error', err);
       return null;
+    }
+  }
+
+  async function unshareCollaborativeProject(folderId, folderName) {
+    if (!db || !folderId) return;
+    try {
+      const docRef = db.collection('shared_projects').doc(folderId);
+      await docRef.set({
+        isCollaborative: false,
+        isClosed: true,
+        memberEmails: [],
+        folder: {
+          id: folderId,
+          name: folderName || 'Shared Project',
+          isCollaborative: false,
+          isClosed: true,
+          members: []
+        },
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      setTimeout(async () => {
+        try {
+          await docRef.delete();
+        } catch (e) {}
+      }, 500);
+    } catch (err) {
+      console.warn('unshareCollaborativeProject failed', err);
+    }
+  }
+
+  async function deleteCollaborativeProject(folderId, folderName) {
+    if (!db || !folderId) return;
+    try {
+      const docRef = db.collection('shared_projects').doc(folderId);
+      await docRef.set({
+        isCollaborative: false,
+        isDeleted: true,
+        memberEmails: [],
+        folder: {
+          id: folderId,
+          name: folderName || 'Shared Project',
+          isCollaborative: false,
+          isDeleted: true,
+          members: []
+        },
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      setTimeout(async () => {
+        try {
+          await docRef.delete();
+        } catch (e) {}
+      }, 500);
+    } catch (err) {
+      console.warn('deleteCollaborativeProject failed', err);
     }
   }
 

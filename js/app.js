@@ -2790,12 +2790,25 @@
       // Edit
       const folder = state.folders.find(f => f.id === editId);
       if (folder) {
+        const wasCollab = isFolderCollaborative(folder);
         folder.name = name;
         folder.desc = desc;
         folder.color = finalColor;
         folder.icon = selectedModalIcon;
         folder.isCollaborative = isCollab;
-        if (isCollab) ensureFolderCollaboration(folder);
+        if (isCollab) {
+          ensureFolderCollaboration(folder);
+        } else if (wasCollab) {
+          // UNCHECKED COLLABORATION IN MODAL: KICK EVERYONE OUT!
+          folder.members = (folder.members || []).filter(m => m.role === 'host');
+          folder.kickedEmails = [];
+          if (window.CloudSync && typeof window.CloudSync.unshareCollaborativeProject === 'function') {
+            window.CloudSync.unshareCollaborativeProject(folder.id, folder.name);
+          }
+          if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+          if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+          state.isChatOpen = false;
+        }
         showToast(`Folder "${name}" updated`, 'success');
       }
     } else {
@@ -2823,11 +2836,19 @@
   }
 
   function confirmDeleteFolder(folder) {
+    const isCollab = isFolderCollaborative(folder);
     const count = state.tasks.filter(t => t.folderId === folder.id).length;
     const catCount = state.categories.filter(c => c.folderId === folder.id).length;
-    const msg = `Are you sure you want to delete folder "${folder.name}"? ${count} tasks and ${catCount} categories in it will be unassigned.`;
+    const msg = isCollab
+      ? `Are you sure you want to delete collaborative project "${folder.name}"?\nAll members will be kicked out and lose access.`
+      : `Are you sure you want to delete folder "${folder.name}"? ${count} tasks and ${catCount} categories in it will be unassigned.`;
 
     if (confirm(msg)) {
+      // If collaborative: delete from cloud and kick everyone out immediately
+      if (isCollab && window.CloudSync && typeof window.CloudSync.deleteCollaborativeProject === 'function') {
+        window.CloudSync.deleteCollaborativeProject(folder.id, folder.name);
+      }
+
       state.folders = state.folders.filter(f => f.id !== folder.id);
       // Detach child categories & tasks rather than deleting or forcing fallback
       state.categories.forEach(c => {
@@ -2846,9 +2867,15 @@
       if (state.entry.folderId === folder.id) {
         state.entry.folderId = '';
       }
+      if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folder.id)) {
+        state.isChatOpen = false;
+        if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+        if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      }
+
       saveState();
       SoundFX.delete();
-      showToast(`Deleted folder "${folder.name}"`, 'info');
+      showToast(`Deleted folder "${folder.name}". All members have been removed.`, 'info');
       renderAll();
     }
   }
@@ -3197,8 +3224,18 @@
       if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       state.isChatOpen = false;
+
+      // UNCHECKED COLLABORATION: KICK EVERYONE OUT!
+      folder.members = (folder.members || []).filter(m => m.role === 'host');
+      folder.kickedEmails = [];
+
+      // Eject all members from cloud shared project
+      if (window.CloudSync && typeof window.CloudSync.unshareCollaborativeProject === 'function') {
+        window.CloudSync.unshareCollaborativeProject(folder.id, folder.name);
+      }
+
       SoundFX.collabOff();
-      showToast(`🔒 Collaboration turned off for "${folder.name}".`, 'info');
+      showToast(`🔒 Collaboration turned off for "${folder.name}". All members have been removed.`, 'info');
     }
 
     saveState();
@@ -3917,7 +3954,7 @@
     state.categories = state.categories.filter(c => c && c.folderId !== folderId);
 
     SoundFX.collabOff();
-    showToast(`🔒 You have been removed from "${folderName}" and no longer have access.`, 'warning');
+    showToast(`🔒 "${folderName}" was deleted or closed by the host. You no longer have access.`, 'warning');
 
     saveState(true);
     renderAll();
@@ -3941,7 +3978,9 @@
     const memberEmails = (Array.isArray(cloudData.memberEmails) ? cloudData.memberEmails : []).map(e => (e || '').toLowerCase().trim());
     const isStillMember = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || memberEmails.includes(myEmail);
 
-    const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder.isCollaborative));
+    // If project was deleted or collaboration was disabled by Host: kick all members out immediately
+    const isUnsharedOrDeleted = !isMeHost && (cloudData.isDeleted || (cloudData.folder && cloudData.folder.isDeleted) || cloudData.isClosed || (cloudData.folder && cloudData.folder.isClosed) || cloudData.isCollaborative === false || (cloudData.folder && cloudData.folder.isCollaborative === false));
+    const isKicked = isUnsharedOrDeleted || (!isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder.isCollaborative)));
 
     if (isKicked) {
       revokeKickedFolderAccess(folderId, cloudData.folder.name);
