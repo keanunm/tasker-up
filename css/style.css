@@ -2996,9 +2996,13 @@ html, body {
   bottom: 24px;
   right: 24px;
   z-index: 999;
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: flex-end;
+}
+
+.project-chat-widget.is-visible {
+  display: flex !important;
 }
 
 /* Floating Trigger Button */

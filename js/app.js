@@ -68,7 +68,8 @@
       sec_backup_desc: 'Export your tasks to a JSON file or restore from a previous backup',
       btn_export: '📥 Export Workspace (JSON)',
       btn_import: '📤 Import Workspace (JSON)',
-      btn_reset: '🔄 Reload Sample Tasks',
+      btn_add_sample_tasks: '➕ Add Sample Tasks',
+      btn_reset: '➕ Add Sample Tasks',
       btn_done: 'Done',
       modal_cat_new: 'Create New Category',
       modal_cat_edit: 'Edit Category',
@@ -153,7 +154,8 @@
       sec_backup_desc: 'Exporta tus tareas en JSON o restaura una copia previa',
       btn_export: '📥 Exportar Espacio (JSON)',
       btn_import: '📤 Importar Espacio (JSON)',
-      btn_reset: '🔄 Recargar Tareas de Muestra',
+      btn_add_sample_tasks: '➕ Añadir Tareas de Ejemplo',
+      btn_reset: '➕ Añadir Tareas de Ejemplo',
       btn_done: 'Listo',
       modal_cat_new: 'Crear Nueva Categoría',
       modal_cat_edit: 'Editar Categoría',
@@ -238,7 +240,8 @@
       sec_backup_desc: 'Exportez vos tâches en JSON ou restaurez un fichier',
       btn_export: '📥 Exporter l’Espace (JSON)',
       btn_import: '📤 Importer l’Espace (JSON)',
-      btn_reset: '🔄 Réinitialiser Données Témoins',
+      btn_add_sample_tasks: '➕ Ajouter des Tâches d\'Exemple',
+      btn_reset: '➕ Ajouter des Tâches d\'Exemple',
       btn_done: 'Terminé',
       modal_cat_new: 'Nouvelle Catégorie',
       modal_cat_edit: 'Modifier Catégorie',
@@ -323,7 +326,8 @@
       sec_backup_desc: 'Exportiere deinen Arbeitsbereich als JSON oder stelle Daten wieder her',
       btn_export: '📥 Arbeitsbereich Exportieren (JSON)',
       btn_import: '📤 Arbeitsbereich Importieren (JSON)',
-      btn_reset: '🔄 Beispieldaten Laden',
+      btn_add_sample_tasks: '➕ Beispieldaten Hinzufügen',
+      btn_reset: '➕ Beispieldaten Hinzufügen',
       btn_done: 'Fertig',
       modal_cat_new: 'Neue Kategorie erstellen',
       modal_cat_edit: 'Kategorie bearbeiten',
@@ -408,7 +412,8 @@
       sec_backup_desc: 'JSONファイルにエクスポート、または以前のバックアップから復元します',
       btn_export: '📥 ワークスペースをエクスポート (JSON)',
       btn_import: '📤 ワークスペースをインポート (JSON)',
-      btn_reset: '🔄 サンプルデータを再読み込み',
+      btn_add_sample_tasks: '➕ サンプルタスクを追加',
+      btn_reset: '➕ サンプルタスクを追加',
       btn_done: '完了',
       modal_cat_new: '新しいカテゴリを作成',
       modal_cat_edit: 'カテゴリを編集',
@@ -493,7 +498,8 @@
       sec_backup_desc: '导出任务数据至JSON文件，或从备份恢复',
       btn_export: '📥 导出工作区 (JSON)',
       btn_import: '📤 导入工作区 (JSON)',
-      btn_reset: '🔄 重置为示例数据',
+      btn_add_sample_tasks: '➕ 添加示例任务',
+      btn_reset: '➕ 添加示例任务',
       btn_done: '完成',
       modal_cat_new: '创建新分类',
       modal_cat_edit: '编辑分类',
@@ -578,7 +584,8 @@
       sec_backup_desc: 'Exporte para arquivo JSON ou restaure um backup',
       btn_export: '📥 Exportar Espaço (JSON)',
       btn_import: '📤 Importar Espaço (JSON)',
-      btn_reset: '🔄 Recarregar Tarefas de Exemplo',
+      btn_add_sample_tasks: '➕ Adicionar Tarefas de Exemplo',
+      btn_reset: '➕ Adicionar Tarefas de Exemplo',
       btn_done: 'Concluído',
       modal_cat_new: 'Criar Nova Categoria',
       modal_cat_edit: 'Editar Categoria',
@@ -683,6 +690,7 @@
       desc: 'Quick day-to-day items and quick inbox',
       color: '#6366f1',
       icon: '📁',
+      isCollaborative: false,
       createdAt: Date.now() - 36000000
     },
     {
@@ -700,6 +708,7 @@
       desc: 'Quarterly campaigns, brand outreach and ads',
       color: '#f59e0b',
       icon: '🚀',
+      isCollaborative: false,
       createdAt: Date.now() - 15000000
     },
     {
@@ -708,6 +717,7 @@
       desc: 'Health, family, home, errands',
       color: '#10b981',
       icon: '🌱',
+      isCollaborative: false,
       createdAt: Date.now() - 5000000
     }
   ];
@@ -974,7 +984,7 @@
         const parsed = JSON.parse(stored);
         state.folders = parsed.folders && parsed.folders.length ? parsed.folders : DEFAULT_FOLDERS;
         state.categories = parsed.categories && parsed.categories.length ? parsed.categories : DEFAULT_CATEGORIES;
-        state.tasks = parsed.tasks ? parsed.tasks : DEFAULT_TASKS;
+        state.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
 
         // Ensure categories have folderId property assigned
         state.categories.forEach(c => {
@@ -1013,14 +1023,18 @@
       } else {
         state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
         state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-        state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+        state.tasks = [];
+        state.folders.forEach(f => {
+          f.isCollaborative = false;
+          ensureFolderCollaboration(f);
+        });
         saveState();
       }
     } catch (err) {
       console.error('Failed to load state from localStorage', err);
       state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
       state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-      state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+      state.tasks = [];
     }
 
     const soundSetting = localStorage.getItem(SOUND_KEY);
@@ -1826,6 +1840,7 @@
     if (dom.projectChatWidget) {
       if (isCollabFolder) {
         dom.projectChatWidget.style.display = 'flex';
+        dom.projectChatWidget.classList.add('is-visible');
         if (state.isChatOpen) {
           if (dom.chatWindow) dom.chatWindow.style.display = 'flex';
           if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'none';
@@ -1835,6 +1850,7 @@
         }
       } else {
         dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
         if (dom.chatWindow) dom.chatWindow.style.display = 'none';
         state.isChatOpen = false;
       }
@@ -2805,7 +2821,10 @@
           if (window.CloudSync && typeof window.CloudSync.unshareCollaborativeProject === 'function') {
             window.CloudSync.unshareCollaborativeProject(folder.id, folder.name);
           }
-          if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+          if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
+      }
           if (dom.chatWindow) dom.chatWindow.style.display = 'none';
           state.isChatOpen = false;
         }
@@ -2870,7 +2889,10 @@
       if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folder.id)) {
         state.isChatOpen = false;
         if (dom.chatWindow) dom.chatWindow.style.display = 'none';
-        if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+        if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
+      }
       }
 
       saveState();
@@ -3221,7 +3243,10 @@
       if (folder.color === COLLAB_PROJECT_COLOR) {
         folder.color = '#6366f1';
       }
-      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
+      }
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       state.isChatOpen = false;
 
@@ -3511,7 +3536,10 @@
   function toggleProjectChat(forceOpen = null, folder = null) {
     if (!folder) folder = getActiveFolder();
     if (!folder || !isFolderCollaborative(folder)) {
-      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
+      }
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       state.isChatOpen = false;
       return;
@@ -3528,6 +3556,7 @@
 
     if (dom.projectChatWidget) {
       dom.projectChatWidget.style.display = 'flex';
+      dom.projectChatWidget.classList.add('is-visible');
     }
 
     if (state.isChatOpen) {
@@ -3942,7 +3971,10 @@
     if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folderId)) {
       state.isChatOpen = false;
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
-      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+      if (dom.projectChatWidget) {
+        dom.projectChatWidget.style.display = 'none';
+        dom.projectChatWidget.classList.remove('is-visible');
+      }
     }
 
     // Completely remove the folder, its tasks, and its categories from local state
@@ -3979,13 +4011,41 @@
     const isStillMember = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || memberEmails.includes(myEmail);
 
     // If project was deleted or collaboration was disabled by Host: kick all members out immediately
-    const isUnsharedOrDeleted = !isMeHost && (cloudData.isDeleted || (cloudData.folder && cloudData.folder.isDeleted) || cloudData.isClosed || (cloudData.folder && cloudData.folder.isClosed) || cloudData.isCollaborative === false || (cloudData.folder && cloudData.folder.isCollaborative === false));
-    const isKicked = isUnsharedOrDeleted || (!isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder.isCollaborative)));
+    const isCloudUnshared = (cloudData.isDeleted || (cloudData.folder && cloudData.folder.isDeleted) || cloudData.isClosed || (cloudData.folder && cloudData.folder.isClosed) || cloudData.isCollaborative === false || (cloudData.folder && cloudData.folder.isCollaborative === false));
+
+    if (isCloudUnshared) {
+      if (isMeHost) {
+        // Host turned off collaboration: ensure local folder is strictly non-collaborative
+        let hostFolder = state.folders.find(f => f.id === folderId);
+        if (hostFolder) {
+          hostFolder.isCollaborative = false;
+          if (hostFolder.color === COLLAB_PROJECT_COLOR) hostFolder.color = '#6366f1';
+          hostFolder.members = (hostFolder.members || []).filter(m => m.role === 'host');
+          hostFolder.kickedEmails = [];
+        }
+        if (dom.projectChatWidget) {
+          dom.projectChatWidget.style.display = 'none';
+          dom.projectChatWidget.classList.remove('is-visible');
+        }
+        if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+        state.isChatOpen = false;
+        saveState(true);
+        renderAll();
+        return;
+      } else {
+        revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
+        return;
+      }
+    }
+
+    const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder && cloudData.folder.isCollaborative));
 
     if (isKicked) {
-      revokeKickedFolderAccess(folderId, cloudData.folder.name);
+      revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
       return;
     }
+
+    const isCollabInCloud = (cloudData.isCollaborative !== false) && (!cloudData.folder || cloudData.folder.isCollaborative !== false);
 
     let folder = state.folders.find(f => f.id === folderId);
     const prevChatCount = (folder && Array.isArray(folder.chat)) ? folder.chat.length : 0;
@@ -3997,9 +4057,9 @@
         name: cloudData.folder.name || 'Shared Project',
         desc: cloudData.folder.desc || '',
         icon: cloudData.folder.icon || '📁',
-        color: COLLAB_PROJECT_COLOR,
+        color: isCollabInCloud ? COLLAB_PROJECT_COLOR : (cloudData.folder.color || '#6366f1'),
         hostEmail: cloudData.folder.hostEmail || 'host@taskerup.io',
-        isCollaborative: true,
+        isCollaborative: isCollabInCloud,
         isJoined: true,
         members: cloudData.folder.members || [],
         chat: cloudData.folder.chat || []
@@ -4007,8 +4067,12 @@
       state.folders.push(folder);
       showToast(`📁 Joined collaborative project "${folder.name}"!`, 'info');
     } else {
-      folder.isCollaborative = true;
-      folder.color = COLLAB_PROJECT_COLOR;
+      folder.isCollaborative = isCollabInCloud;
+      if (isCollabInCloud) {
+        folder.color = COLLAB_PROJECT_COLOR;
+      } else if (folder.color === COLLAB_PROJECT_COLOR) {
+        folder.color = '#6366f1';
+      }
       if (cloudData.folder.name) folder.name = cloudData.folder.name;
       if (cloudData.folder.desc !== undefined) folder.desc = cloudData.folder.desc;
       if (cloudData.folder.icon) folder.icon = cloudData.folder.icon;
@@ -4198,18 +4262,42 @@
     reader.readAsText(file);
   }
 
-  function resetToSampleData() {
-    if (confirm('Reset all tasks, folders, and categories to default sample data?')) {
-      state.folders = JSON.parse(JSON.stringify(DEFAULT_FOLDERS));
-      state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-      state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
-      state.activeView = { type: 'all', id: null };
-      saveState();
-      if (dom.settingsModal) dom.settingsModal.classList.remove('open');
-      showToast('Sample data reloaded!', 'info');
-      renderAll();
-    }
+  function addSampleTasks() {
+    // Ensure default folders and categories exist so sample tasks have valid associations
+    DEFAULT_FOLDERS.forEach(df => {
+      if (!state.folders.some(f => f.id === df.id)) {
+        state.folders.push(JSON.parse(JSON.stringify(df)));
+      }
+    });
+
+    DEFAULT_CATEGORIES.forEach(dc => {
+      if (!state.categories.some(c => c.id === dc.id)) {
+        state.categories.push(JSON.parse(JSON.stringify(dc)));
+      }
+    });
+
+    // Create fresh copies of DEFAULT_TASKS with unique IDs and relative due dates
+    const now = Date.now();
+    const newSampleTasks = DEFAULT_TASKS.map((t, idx) => {
+      const copy = JSON.parse(JSON.stringify(t));
+      copy.id = `task-sample-${now}-${idx}-${Math.random().toString(36).substr(2, 4)}`;
+      copy.createdAt = now - (idx * 3600000);
+      copy.completed = false;
+      copy.completedAt = null;
+      return copy;
+    });
+
+    // Append sample tasks without wiping existing user tasks
+    state.tasks.push(...newSampleTasks);
+
+    SoundFX.add();
+    saveState();
+    if (dom.settingsModal) dom.settingsModal.classList.remove('open');
+    showToast(`Added ${newSampleTasks.length} sample tasks to your workspace!`, 'success');
+    renderAll();
   }
+
+  const resetToSampleData = addSampleTasks;
 
   // ==========================================
   // 15. DROPDOWNS & POPOVERS MANAGEMENT
@@ -4443,7 +4531,7 @@
       dom.importDataFileInput.addEventListener('change', (e) => importData(e.target.files[0]));
     }
     if (dom.resetDemoDataBtn) {
-      dom.resetDemoDataBtn.addEventListener('click', resetToSampleData);
+      dom.resetDemoDataBtn.addEventListener('click', addSampleTasks);
     }
 
     // Search bar
@@ -4622,7 +4710,23 @@
     window.addEventListener('tasker:shared-project-removed', (e) => {
       const { folderId } = e.detail;
       if (!folderId) return;
-      revokeKickedFolderAccess(folderId, 'Shared Project');
+      const f = state.folders.find(fold => fold.id === folderId);
+      if (f) {
+        if (f.isJoined) {
+          revokeKickedFolderAccess(folderId, f.name || 'Shared Project');
+        } else {
+          f.isCollaborative = false;
+          if (f.color === COLLAB_PROJECT_COLOR) f.color = '#6366f1';
+          if (dom.projectChatWidget) {
+            dom.projectChatWidget.style.display = 'none';
+            dom.projectChatWidget.classList.remove('is-visible');
+          }
+          if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+          state.isChatOpen = false;
+          saveState(true);
+          renderAll();
+        }
+      }
     });
 
     window.addEventListener('tasker:remote-update', (e) => {
@@ -4779,6 +4883,7 @@
   // Expose application interface
   window.TaskerApp = {
     getState: () => state,
+    addSampleTasks,
     handleSharedProjectIncomingSync,
     checkUrlJoinInvitation,
     serializeProjectPackage,

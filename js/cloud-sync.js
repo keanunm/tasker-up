@@ -206,22 +206,31 @@
    */
   function sanitizeForFirestore(val) {
     if (val === undefined) return null;
-    if (val === null || typeof val !== 'object') return val;
+    if (val === null) return null;
+    if (typeof val === 'function' || typeof val === 'symbol') return null;
+    if (typeof val !== 'object') return val;
     // Preserve Firestore FieldValue instances (e.g. serverTimestamp)
     if (typeof val === 'object' && val.isEqual && typeof val.isEqual === 'function') return val;
-    if (Array.isArray(val)) {
-      return val
-        .filter(item => item !== undefined)
-        .map(item => sanitizeForFirestore(item));
-    }
-    const clean = {};
-    for (const key of Object.keys(val)) {
-      const v = val[key];
-      if (v !== undefined) {
-        clean[key] = sanitizeForFirestore(v);
+    try {
+      // Native JSON serialization removes all undefined keys from objects and turns undefined in arrays into null
+      const serialized = JSON.stringify(val);
+      if (serialized === undefined) return null;
+      return JSON.parse(serialized);
+    } catch (e) {
+      if (Array.isArray(val)) {
+        return val
+          .filter(item => item !== undefined)
+          .map(item => sanitizeForFirestore(item));
       }
+      const clean = {};
+      for (const key of Object.keys(val)) {
+        const v = val[key];
+        if (v !== undefined) {
+          clean[key] = sanitizeForFirestore(v);
+        }
+      }
+      return clean;
     }
-    return clean;
   }
 
   async function uploadCurrentWorkspaceToCloud(isInitial = false) {
@@ -242,17 +251,19 @@
 
       const docRef = db.collection('users').doc(currentUser.uid).collection('workspace').doc('main');
 
-      const cleanTasks = sanitizeForFirestore(payload.tasks || []);
-      const cleanFolders = sanitizeForFirestore(payload.folders || []);
-      const cleanCategories = sanitizeForFirestore(payload.categories || []);
+      const rawTasks = payload.tasks || [];
+      const rawFolders = payload.folders || [];
+      const rawCategories = payload.categories || [];
 
-      await docRef.set({
-        tasks: cleanTasks,
-        folders: cleanFolders,
-        categories: cleanCategories,
+      const docData = {
+        tasks: sanitizeForFirestore(rawTasks),
+        folders: sanitizeForFirestore(rawFolders),
+        categories: sanitizeForFirestore(rawCategories),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        deviceInfo: navigator.userAgent || 'web'
-      }, { merge: true });
+        deviceInfo: (navigator && navigator.userAgent) ? navigator.userAgent : 'web'
+      };
+
+      await docRef.set(docData, { merge: true });
 
       lastSyncedTimestamp = Date.now();
       updateUIStatus('synced', 'Synced just now');
@@ -709,7 +720,7 @@
         tasks: cleanTasks,
         categories: cleanCats,
         updatedAt: Date.now(),
-        updatedBy: currentUser ? (currentUser.displayName || currentUser.email) : 'user'
+        updatedBy: currentUser ? (currentUser.displayName || currentUser.email || 'user') : 'user'
       }, { merge: true });
     } catch (err) {
       console.warn('syncCollaborativeProject failed', err);
