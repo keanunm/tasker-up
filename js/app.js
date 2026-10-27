@@ -3302,17 +3302,17 @@
         const roleLabel = isMemberHost ? 'Host' : (member.role === 'viewer' ? 'Viewer' : 'Member');
         const roleClass = member.role || 'member';
 
+        const memberDisplayName = member.name || (member.email ? member.email.split('@')[0] : 'Member');
         row.innerHTML = `
           <div class="member-profile-wrap">
             <div class="member-avatar-badge" style="background-color: ${member.avatarColor || '#3b82f6'};">
-              ${(member.name || member.email || '?').charAt(0).toUpperCase()}
+              ${memberDisplayName.charAt(0).toUpperCase()}
             </div>
             <div class="member-details">
               <span class="member-name-text">
-                ${escapeHtml(member.name || member.email.split('@')[0])}
+                ${escapeHtml(memberDisplayName)}
                 ${isMemberHost ? '👑' : ''}
               </span>
-              <span class="member-email-sub">${escapeHtml(member.email)}</span>
             </div>
           </div>
           <div class="member-actions-wrap">
@@ -3435,16 +3435,17 @@
     folder.members = folder.members.filter(m => m.id !== memberId);
 
     // Add kicked message in project chat
+    const kickedName = mem ? (mem.name || (mem.email ? mem.email.split('@')[0] : 'Member')) : 'Member';
     folder.chat.push({
       id: 'msg-' + Date.now(),
       isSystem: true,
-      text: `🚫 ${mem.email} was removed from this project by Host.`,
+      text: `🚫 ${kickedName} was removed from this project by Host.`,
       createdAt: Date.now()
     });
 
     saveState();
     SoundFX.click();
-    showToast(`Removed ${mem.name || mem.email} from project ${folder.name}.`, 'info');
+    showToast(`Removed ${kickedName} from project ${folder.name}.`, 'info');
 
     renderInviteModalContent(folder);
     renderAll();

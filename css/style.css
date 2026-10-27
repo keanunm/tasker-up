@@ -2887,8 +2887,7 @@ html, body {
   gap: 6px;
 }
 .member-email-sub {
-  font-size: 0.74rem;
-  color: var(--text-dim);
+  display: none !important;
 }
 .member-actions-wrap {
   display: flex;
