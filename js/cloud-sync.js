@@ -692,17 +692,20 @@
         hostEmail: folder.hostEmail || (currentUser ? currentUser.email : 'host@taskerup.io'),
         isCollaborative: true,
         members: folder.members || [],
+        kickedEmails: folder.kickedEmails || [],
         chat: folder.chat || [],
         updatedAt: Date.now()
       });
 
       const cleanMemberEmails = sanitizeForFirestore(memberEmails);
+      const cleanKickedEmails = sanitizeForFirestore((folder.kickedEmails || []).map(e => (e || '').toLowerCase().trim()));
       const cleanTasks = sanitizeForFirestore(safeTasks);
       const cleanCats = sanitizeForFirestore(safeCats);
 
       await docRef.set({
         folder: cleanFolder,
         memberEmails: cleanMemberEmails,
+        kickedEmails: cleanKickedEmails,
         tasks: cleanTasks,
         categories: cleanCats,
         updatedAt: Date.now(),
@@ -742,6 +745,14 @@
                   })
                 );
               }
+            } else if (change.type === 'removed') {
+              window.dispatchEvent(
+                new CustomEvent('tasker:shared-project-removed', {
+                  detail: {
+                    folderId: change.doc.id
+                  }
+                })
+              );
             }
           });
         }, (err) => {
@@ -750,6 +761,14 @@
     } catch (err) {
       console.warn('startSharedProjectsDiscovery error', err);
     }
+  }
+
+  function stopListeningToCollaborativeProject(folderId) {
+    if (!folderId || !activeCollabListeners[folderId]) return;
+    try {
+      activeCollabListeners[folderId]();
+    } catch (e) {}
+    delete activeCollabListeners[folderId];
   }
 
   function listenToCollaborativeProject(folderId, callback) {

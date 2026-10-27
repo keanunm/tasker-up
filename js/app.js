@@ -3055,7 +3055,8 @@
           icon: folder.icon || '📁',
           color: COLLAB_PROJECT_COLOR,
           host: folder.hostEmail || 'host@taskerup.io',
-          collab: true
+          collab: true,
+          kicked: folder.kickedEmails || []
         },
         c: childCategories.map(c => ({
           id: c.id,
@@ -3137,6 +3138,7 @@
     if (typeof folder.isCollaborative !== 'boolean') {
       folder.isCollaborative = false;
     }
+    if (!Array.isArray(folder.kickedEmails)) folder.kickedEmails = [];
     if (folder.isCollaborative) {
       if (!folder.color || folder.color === '#6366f1') {
         folder.color = COLLAB_PROJECT_COLOR;
@@ -3434,6 +3436,11 @@
       return;
     }
 
+    if (!Array.isArray(folder.kickedEmails)) folder.kickedEmails = [];
+    if (mem.email && !folder.kickedEmails.includes(mem.email.toLowerCase().trim())) {
+      folder.kickedEmails.push(mem.email.toLowerCase().trim());
+    }
+
     folder.members = folder.members.filter(m => m.id !== memberId);
 
     // Add kicked message in project chat
@@ -3448,6 +3455,13 @@
     saveState();
     SoundFX.click();
     showToast(`Removed ${kickedName} from project ${folder.name}.`, 'info');
+
+    // Force real-time Firestore push immediately
+    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+      const fTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+      const fCats = state.categories.filter(c => c && c.folderId === folder.id);
+      window.CloudSync.syncCollaborativeProject(folder, fTasks, fCats);
+    }
 
     renderInviteModalContent(folder);
     renderAll();
@@ -3653,6 +3667,27 @@
     const projectPkg = deserializeProjectPackage(pkgStr);
 
     let folder = state.folders.find(f => f.id === joinFolderId);
+
+    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
+    const defaultEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
+    const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
+
+    const kickedList = [
+      ...(projectPkg && projectPkg.f && Array.isArray(projectPkg.f.kicked) ? projectPkg.f.kicked : []),
+      ...(folder && Array.isArray(folder.kickedEmails) ? folder.kickedEmails : [])
+    ].map(e => (e || '').toLowerCase().trim());
+
+    if (defaultEmail && kickedList.includes(defaultEmail.toLowerCase().trim())) {
+      showToast('🚫 You were removed from this collaborative project by the host and cannot rejoin.', 'error');
+      try {
+        let cleanUrl = window.location.origin + window.location.pathname;
+        if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+          cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        }
+        window.history.replaceState({}, document.title, cleanUrl);
+      } catch (e) {}
+      return;
+    }
     if (!folder) {
       folder = {
         id: joinFolderId,
@@ -3755,10 +3790,6 @@
     saveState();
     renderAll();
 
-    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
-    const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
-    const defaultEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
-
     if (dom.acceptProjectTitle) dom.acceptProjectTitle.textContent = `Join "${folder.name}"`;
     if (dom.acceptFolderName) dom.acceptFolderName.textContent = folder.name;
     if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folder.icon;
@@ -3853,8 +3884,70 @@
     }
   }
 
+  function revokeKickedFolderAccess(folderId, fallbackName = 'Collaborative Project') {
+    if (!folderId) return;
+
+    // Stop listening to this collaborative project
+    if (window.CloudSync && typeof window.CloudSync.stopListeningToCollaborativeProject === 'function') {
+      window.CloudSync.stopListeningToCollaborativeProject(folderId);
+    }
+
+    // Check if user currently had this folder open or selected
+    const wasViewingFolder = state.activeView && state.activeView.type === 'folder' && state.activeView.id === folderId;
+    if (wasViewingFolder) {
+      state.activeView = { type: 'all', id: null };
+    }
+    if (state.entry && state.entry.folderId === folderId) {
+      state.entry.folderId = '';
+    }
+
+    // Close project chat if it belonged to this project
+    if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folderId)) {
+      state.isChatOpen = false;
+      if (dom.chatWindow) dom.chatWindow.style.display = 'none';
+      if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
+    }
+
+    // Completely remove the folder, its tasks, and its categories from local state
+    const targetFolder = state.folders.find(f => f.id === folderId);
+    const folderName = targetFolder ? targetFolder.name : fallbackName;
+
+    state.folders = state.folders.filter(f => f.id !== folderId);
+    state.tasks = state.tasks.filter(t => t && t.folderId !== folderId);
+    state.categories = state.categories.filter(c => c && c.folderId !== folderId);
+
+    SoundFX.collabOff();
+    showToast(`🔒 You have been removed from "${folderName}" and no longer have access.`, 'warning');
+
+    saveState(true);
+    renderAll();
+  }
+
   function handleSharedProjectIncomingSync(folderId, cloudData) {
     if (!cloudData || !folderId || !cloudData.folder) return;
+
+    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
+    const myEmail = ((curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '').toLowerCase().trim();
+    const hostEmail = (cloudData.folder.hostEmail || '').toLowerCase().trim();
+    const isMeHost = myEmail && hostEmail && (myEmail === hostEmail);
+
+    // Check if current user was kicked out of this collaborative folder
+    const kickedEmails = [
+      ...(Array.isArray(cloudData.kickedEmails) ? cloudData.kickedEmails : []),
+      ...(Array.isArray(cloudData.folder.kickedEmails) ? cloudData.folder.kickedEmails : [])
+    ].map(e => (e || '').toLowerCase().trim());
+
+    const folderMembers = (Array.isArray(cloudData.folder.members) ? cloudData.folder.members : []);
+    const memberEmails = (Array.isArray(cloudData.memberEmails) ? cloudData.memberEmails : []).map(e => (e || '').toLowerCase().trim());
+    const isStillMember = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || memberEmails.includes(myEmail);
+
+    const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder.isCollaborative));
+
+    if (isKicked) {
+      revokeKickedFolderAccess(folderId, cloudData.folder.name);
+      return;
+    }
+
     let folder = state.folders.find(f => f.id === folderId);
     const prevChatCount = (folder && Array.isArray(folder.chat)) ? folder.chat.length : 0;
     const isNew = !folder;
@@ -4487,6 +4580,12 @@
       handleSharedProjectIncomingSync(folderId, data);
     });
 
+    window.addEventListener('tasker:shared-project-removed', (e) => {
+      const { folderId } = e.detail;
+      if (!folderId) return;
+      revokeKickedFolderAccess(folderId, 'Shared Project');
+    });
+
     window.addEventListener('tasker:remote-update', (e) => {
       const { folders, categories, tasks } = e.detail;
       if (folders && Array.isArray(folders) && folders.length) {
@@ -4637,5 +4736,14 @@
   } else {
     init();
   }
+
+  // Expose application interface
+  window.TaskerApp = {
+    getState: () => state,
+    handleSharedProjectIncomingSync,
+    checkUrlJoinInvitation,
+    serializeProjectPackage,
+    renderAll
+  };
 
 })();
