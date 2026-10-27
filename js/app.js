@@ -3254,12 +3254,18 @@
       state.isChatOpen = !state.isChatOpen;
     }
 
+    if (dom.projectChatWidget) {
+      dom.projectChatWidget.style.display = 'flex';
+    }
+
     if (state.isChatOpen) {
       if (dom.chatWindow) dom.chatWindow.style.display = 'flex';
       if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'none';
       if (dom.chatUnreadDot) dom.chatUnreadDot.style.display = 'none';
       renderProjectChat(folder);
-      if (dom.chatMessageInput) dom.chatMessageInput.focus();
+      setTimeout(() => {
+        if (dom.chatMessageInput) dom.chatMessageInput.focus();
+      }, 50);
     } else {
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'inline-flex';
@@ -3333,7 +3339,7 @@
 
   function sendChatMessage(folder, text) {
     if (!folder) folder = getActiveFolder();
-    if (!folder || !text.trim()) return;
+    if (!folder || !text || !text.trim()) return;
     ensureFolderCollaboration(folder);
 
     const user = getCurrentUserIdentity(folder);
@@ -3346,12 +3352,23 @@
       createdAt: Date.now()
     };
 
+    if (!Array.isArray(folder.chat)) folder.chat = [];
     folder.chat.push(newMsg);
     saveState();
     SoundFX.playTone(660, 'sine', 0.08);
 
     renderProjectChat(folder);
-    if (dom.chatMessageInput) dom.chatMessageInput.value = '';
+    if (dom.chatMessageInput) {
+      dom.chatMessageInput.value = '';
+      dom.chatMessageInput.focus();
+    }
+
+    // Sync to cloud Firestore in real-time if available
+    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+      const fTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+      const fCats = state.categories.filter(c => c && c.folderId === folder.id);
+      window.CloudSync.syncCollaborativeProject(folder, fTasks, fCats);
+    }
   }
 
   function checkUrlJoinInvitation() {
@@ -3974,25 +3991,49 @@
 
     // Small Project Chat Listeners
     if (dom.chatFloatingBtn) {
-      dom.chatFloatingBtn.addEventListener('click', () => {
+      dom.chatFloatingBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleProjectChat(true, getActiveFolder());
       });
     }
     if (dom.minimizeChatBtn) {
-      dom.minimizeChatBtn.addEventListener('click', () => {
+      dom.minimizeChatBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleProjectChat(false);
       });
     }
     if (dom.closeChatBtn) {
-      dom.closeChatBtn.addEventListener('click', () => {
+      dom.closeChatBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         toggleProjectChat(false);
       });
     }
     if (dom.chatMessageForm) {
       dom.chatMessageForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (dom.chatMessageInput) {
-          sendChatMessage(getActiveFolder(), dom.chatMessageInput.value);
+        const text = dom.chatMessageInput ? dom.chatMessageInput.value : '';
+        if (text && text.trim()) {
+          sendChatMessage(getActiveFolder(), text);
+        }
+      });
+    }
+    if (dom.chatMessageInput) {
+      dom.chatMessageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const text = dom.chatMessageInput.value;
+          if (text && text.trim()) {
+            sendChatMessage(getActiveFolder(), text);
+          }
+        }
+      });
+    }
+    if (dom.chatSendBtn) {
+      dom.chatSendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const text = dom.chatMessageInput ? dom.chatMessageInput.value : '';
+        if (text && text.trim()) {
+          sendChatMessage(getActiveFolder(), text);
         }
       });
     }
