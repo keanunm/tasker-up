@@ -574,7 +574,32 @@
         <button class="modal-close-btn" id="closeSettingsModalBtn" aria-label="Close dialog">×</button>
       </div>
 
-      <div class="settings-modal-body">
+            <div class="settings-modal-body">
+        <!-- 0. User Profile / Display Name Section -->
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <span class="settings-section-icon">👤</span>
+            <div class="settings-section-meta">
+              <h3 class="settings-section-title" data-i18n="sec_profile">Your Display Name</h3>
+              <p class="settings-section-desc" data-i18n="sec_profile_desc">Your name shown across collaborative projects, chat, and task assignments</p>
+            </div>
+          </div>
+          <div class="settings-control-wrap">
+            <div class="settings-name-input-group">
+              <input 
+                type="text" 
+                id="settingsUserNameInput" 
+                class="custom-input settings-name-input" 
+                placeholder="Enter your name (e.g. Alex Dev)" 
+                maxlength="40"
+                autocomplete="name"
+              >
+              <button type="button" class="primary-btn settings-save-name-btn" id="saveUserNameBtn">
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
         <!-- 1. Language Setting Section -->
         <div class="settings-section">
           <div class="settings-section-header">

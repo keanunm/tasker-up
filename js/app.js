@@ -1342,6 +1342,8 @@
     settingsModal: document.getElementById('settingsModal'),
     closeSettingsModalBtn: document.getElementById('closeSettingsModalBtn'),
     doneSettingsModalBtn: document.getElementById('doneSettingsModalBtn'),
+    settingsUserNameInput: document.getElementById('settingsUserNameInput'),
+    saveUserNameBtn: document.getElementById('saveUserNameBtn'),
     settingsLanguageSelect: document.getElementById('settingsLanguageSelect'),
     settingsSoundToggle: document.getElementById('settingsSoundToggle'),
     settingsSoundStatusLabel: document.getElementById('settingsSoundStatusLabel'),
@@ -3018,7 +3020,7 @@
     const storedRole = localStorage.getItem('tasker_user_role');
 
     const email = (curUser && curUser.email) || storedEmail || (folder && folder.hostEmail) || 'user@taskerup.io';
-    const name = (curUser && curUser.displayName) || storedName || (email.includes('@') ? email.split('@')[0] : email);
+    const name = storedName || (curUser && curUser.displayName) || (email.includes('@') ? email.split('@')[0] : email);
 
     let role = 'member';
     if (folder) {
@@ -3935,6 +3937,11 @@
   // ==========================================
   function openSettingsModal() {
     SoundFX.modalOpen();
+    if (dom.settingsUserNameInput) {
+      const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
+      const currentName = localStorage.getItem('tasker_user_name') || (curUser && curUser.displayName) || '';
+      dom.settingsUserNameInput.value = currentName;
+    }
     if (dom.settingsLanguageSelect) {
       dom.settingsLanguageSelect.value = state.language || 'en';
     }
@@ -3952,7 +3959,55 @@
     }
   }
 
+  function saveUserNameFromSettings(silent = false) {
+    if (!dom.settingsUserNameInput) return;
+    const newName = dom.settingsUserNameInput.value.trim();
+    if (!newName) {
+      if (!silent) showToast('Please enter a display name.', 'error');
+      return;
+    }
+
+    const prevName = localStorage.getItem('tasker_user_name');
+    if (prevName === newName && silent) return;
+
+    localStorage.setItem('tasker_user_name', newName);
+
+    // Update current user identity across loaded folders
+    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
+    const userEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
+
+    state.folders.forEach(f => {
+      if (f && Array.isArray(f.members)) {
+        let changed = false;
+        f.members.forEach(m => {
+          if ((userEmail && m.email && m.email.toLowerCase() === userEmail.toLowerCase()) || m.role === 'host') {
+            m.name = newName;
+            changed = true;
+          }
+        });
+        if (changed && isFolderCollaborative(f) && window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+          const fTasks = state.tasks.filter(t => t && t.folderId === f.id);
+          const fCats = state.categories.filter(c => c && c.folderId === f.id);
+          window.CloudSync.syncCollaborativeProject(f, fTasks, fCats);
+        }
+      }
+    });
+
+    saveState();
+    if (!silent) {
+      SoundFX.add();
+      showToast(`Display name updated to "${newName}"!`, 'success');
+    }
+
+    if (state.isChatOpen) {
+      renderProjectChat();
+    }
+    renderTopHeader();
+    renderFoldersList();
+  }
+
   function closeSettingsModal() {
+    saveUserNameFromSettings(true);
     SoundFX.modalClose();
     if (dom.settingsModal) {
       dom.settingsModal.classList.remove('open');
@@ -4213,6 +4268,19 @@
     }
     if (dom.closeSettingsModalBtn) {
       dom.closeSettingsModalBtn.addEventListener('click', closeSettingsModal);
+    }
+    if (dom.saveUserNameBtn) {
+      dom.saveUserNameBtn.addEventListener('click', () => {
+        saveUserNameFromSettings(false);
+      });
+    }
+    if (dom.settingsUserNameInput) {
+      dom.settingsUserNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveUserNameFromSettings(false);
+        }
+      });
     }
     if (dom.doneSettingsModalBtn) {
       dom.doneSettingsModalBtn.addEventListener('click', closeSettingsModal);
