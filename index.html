@@ -16,7 +16,7 @@
   <link rel="alternate icon" href="favicon.svg">
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.9">
+  <link rel="stylesheet" href="css/style.css?v=3.0">
 </head>
 <body class="theme-dark">
   <!-- Subtle ambient background glow -->
@@ -439,7 +439,7 @@
                 <span>Collaborative Project</span>
                 <span class="collab-badge-pill">SPECIAL COLOR</span>
               </label>
-              <p class="form-hint">Applies the special cyan collaborative color, enables member invitations, and activates live sync.</p>
+              <p class="form-hint">Checking this box enables member invitations, and activates live sync.</p>
             </div>
             <label class="switch-control">
               <input type="checkbox" id="folderIsCollabCheckbox">
@@ -826,6 +826,10 @@
           </div>
         </div>
         <div class="chat-header-actions">
+          <button type="button" class="chat-action-btn new-chat-btn" id="newChatBtn" title="Start a New Chat Session">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>New Chat</span>
+          </button>
           <button type="button" class="chat-action-btn" id="minimizeChatBtn" title="Minimize Chat">−</button>
           <button type="button" class="chat-action-btn" id="closeChatBtn" title="Close Chat">×</button>
         </div>
@@ -843,7 +847,7 @@
       </div>
 
       <!-- Message Input Form -->
-      <form id="chatMessageForm" class="chat-input-form">
+      <form id="chatMessageForm" class="chat-input-form" onsubmit="event.preventDefault(); return false;">
         <input 
           type="text" 
           id="chatMessageInput" 
@@ -913,7 +917,7 @@
 
   <!-- APPLICATION SCRIPTS -->
   <script src="js/firebase-config.js?v=2.3"></script>
-  <script src="js/cloud-sync.js?v=2.9"></script>
-  <script src="js/app.js?v=2.9"></script>
+  <script src="js/cloud-sync.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
 </body>
 </html>

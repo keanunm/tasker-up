@@ -868,6 +868,27 @@
         // Audio might be blocked by browser policy until interaction
       }
     },
+    playSweep(startFreq, endFreq, type, duration, gainVal = 0.08) {
+      if (!state.soundEnabled) return;
+      try {
+        this.init();
+        if (!this.audioCtx) return;
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume();
+        }
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(Math.max(20, startFreq), this.audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), this.audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(gainVal, this.audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start();
+        osc.stop(this.audioCtx.currentTime + duration);
+      } catch (e) {}
+    },
     add() {
       // Pleasant bubbly pop
       this.playTone(520, 'sine', 0.12, 0.08);
@@ -889,6 +910,57 @@
     delete() {
       this.playTone(320, 'sine', 0.15, 0.07);
       setTimeout(() => this.playTone(220, 'sine', 0.2, 0.06), 70);
+    },
+    chatSend() {
+      // Crisp upward whoosh pop
+      this.playSweep(420, 880, 'sine', 0.1, 0.07);
+      setTimeout(() => this.playTone(1050, 'sine', 0.08, 0.05), 45);
+    },
+    chatReceive() {
+      // Cheerful marimba two-note chime (F#5, B5)
+      this.playTone(739.99, 'triangle', 0.15, 0.08);
+      setTimeout(() => this.playTone(987.77, 'triangle', 0.22, 0.08), 85);
+    },
+    newChat() {
+      // Shimmering sparkle chord celebrating fresh chat
+      this.playTone(659.25, 'triangle', 0.15, 0.06);
+      setTimeout(() => this.playTone(830.61, 'triangle', 0.15, 0.07), 70);
+      setTimeout(() => this.playTone(987.77, 'triangle', 0.2, 0.07), 140);
+      setTimeout(() => this.playTone(1318.51, 'triangle', 0.3, 0.08), 210);
+    },
+    collabOn() {
+      // Cyber activation chime
+      this.playSweep(320, 640, 'triangle', 0.15, 0.08);
+      setTimeout(() => this.playTone(880, 'triangle', 0.2, 0.09), 110);
+      setTimeout(() => this.playTone(1174.66, 'sine', 0.28, 0.08), 190);
+    },
+    collabOff() {
+      // Gentle power down sweep
+      this.playSweep(660, 320, 'sine', 0.18, 0.06);
+    },
+    folderSwitch() {
+      // Light tactile navigation tick
+      this.playTone(780, 'sine', 0.04, 0.03);
+    },
+    modalOpen() {
+      // Airy soft rising whoosh
+      this.playSweep(280, 560, 'sine', 0.09, 0.04);
+    },
+    modalClose() {
+      // Gentle settling pop
+      this.playSweep(500, 260, 'sine', 0.08, 0.035);
+    },
+    chipSelect() {
+      // Snappy filter tick
+      this.playTone(960, 'sine', 0.035, 0.03);
+    },
+    celebrate() {
+      // Victory fanfare chord
+      this.playTone(523.25, 'triangle', 0.2, 0.08);
+      setTimeout(() => this.playTone(659.25, 'triangle', 0.2, 0.08), 90);
+      setTimeout(() => this.playTone(783.99, 'triangle', 0.2, 0.08), 180);
+      setTimeout(() => this.playTone(1046.50, 'triangle', 0.35, 0.1), 270);
+      setTimeout(() => this.playTone(1318.51, 'triangle', 0.45, 0.09), 380);
     }
   };
 
@@ -1314,6 +1386,7 @@
     chatWindow: document.getElementById('chatWindow'),
     chatProjectTitle: document.getElementById('chatProjectTitle'),
     chatMembersOnline: document.getElementById('chatMembersOnline'),
+    newChatBtn: document.getElementById('newChatBtn'),
     minimizeChatBtn: document.getElementById('minimizeChatBtn'),
     closeChatBtn: document.getElementById('closeChatBtn'),
     chatUserIdentity: document.getElementById('chatUserIdentity'),
@@ -1469,7 +1542,7 @@
         state.activeView = { type: 'folder', id: folder.id };
         state.entry.folderId = folder.id;
         renderAll();
-        SoundFX.click();
+        SoundFX.folderSwitch();
         closeMobileSidebar();
       });
 
@@ -1710,7 +1783,9 @@
           }
         }
         if (dom.viewHeaderChatCount) {
-          dom.viewHeaderChatCount.textContent = folder.chat ? folder.chat.length : 0;
+          const chatCount = Array.isArray(folder.chat) ? folder.chat.length : 0;
+          dom.viewHeaderChatCount.textContent = chatCount;
+          dom.viewHeaderChatCount.style.display = chatCount > 0 ? 'inline-flex' : 'none';
         }
       }
     }
@@ -1842,7 +1917,7 @@
       state.entry.folderId = '';
       renderEntryChips();
       closeAllDropdowns();
-      SoundFX.click();
+      SoundFX.chipSelect();
     });
     dom.entryFolderDropdown.appendChild(noneFolderBtn);
 
@@ -1855,7 +1930,7 @@
         state.entry.folderId = f.id;
         renderEntryChips();
         closeAllDropdowns();
-        SoundFX.click();
+        SoundFX.chipSelect();
       });
       dom.entryFolderDropdown.appendChild(btn);
     });
@@ -1887,7 +1962,7 @@
       state.entry.categoryId = '';
       renderEntryChips();
       closeAllDropdowns();
-      SoundFX.click();
+      SoundFX.chipSelect();
     });
     dom.entryCategoryDropdown.appendChild(noneCatBtn);
 
@@ -1912,7 +1987,7 @@
         state.entry.categoryId = c.id;
         renderEntryChips();
         closeAllDropdowns();
-        SoundFX.click();
+        SoundFX.chipSelect();
       });
       dom.entryCategoryDropdown.appendChild(btn);
     }
@@ -2353,7 +2428,11 @@
 
     task.starred = !task.starred;
     saveState();
-    SoundFX.click();
+    if (task.starred) {
+      SoundFX.playTone(880, 'triangle', 0.12, 0.08);
+    } else {
+      SoundFX.playTone(480, 'sine', 0.08, 0.04);
+    }
     renderAll();
   }
 
@@ -2436,6 +2515,7 @@
   }
 
   function openCategoryModal(existingCategory = null, presetFolderId = null) {
+    SoundFX.modalOpen();
     initCategoryModalUI();
 
     // Populate Folder Select in Category Modal
@@ -2478,6 +2558,7 @@
   }
 
   function closeCategoryModal() {
+    SoundFX.modalClose();
     dom.categoryModal.classList.remove('open');
   }
 
@@ -2633,6 +2714,7 @@
   }
 
   function openFolderModal(existingFolder = null) {
+    SoundFX.modalOpen();
     initFolderModalUI();
 
     const isCollab = existingFolder ? isFolderCollaborative(existingFolder) : false;
@@ -2640,11 +2722,13 @@
       dom.folderIsCollabCheckbox.checked = isCollab;
       dom.folderIsCollabCheckbox.onchange = (e) => {
         if (e.target.checked) {
+          SoundFX.collabOn();
           selectedModalColor = COLLAB_PROJECT_COLOR;
           updateFolderModalSwatches();
           if (dom.folderCollabSection) dom.folderCollabSection.style.display = 'block';
           showToast('Special collaborative theme applied (#06b6d4 Electric Cyan)!', 'info');
         } else {
+          SoundFX.collabOff();
           if (selectedModalColor === COLLAB_PROJECT_COLOR) {
             selectedModalColor = '#6366f1';
           }
@@ -2680,6 +2764,7 @@
   }
 
   function closeFolderModal() {
+    SoundFX.modalClose();
     dom.folderModal.classList.remove('open');
   }
 
@@ -2771,6 +2856,7 @@
   // ==========================================
 
   function openTaskEditModal(task) {
+    SoundFX.modalOpen();
     dom.editTaskId.value = task.id;
     dom.editTaskTitleInput.value = task.title;
     dom.editTaskNotesInput.value = task.notes || '';
@@ -2829,6 +2915,7 @@
   }
 
   function closeTaskEditModal() {
+    SoundFX.modalClose();
     dom.taskEditModal.classList.remove('open');
   }
 
@@ -3097,6 +3184,7 @@
     if (willBeCollab) {
       folder.color = COLLAB_PROJECT_COLOR;
       ensureFolderCollaboration(folder);
+      SoundFX.collabOn();
       showToast(`👥 Collaboration enabled for "${folder.name}"!`, 'success');
     } else {
       if (folder.color === COLLAB_PROJECT_COLOR) {
@@ -3105,12 +3193,12 @@
       if (dom.projectChatWidget) dom.projectChatWidget.style.display = 'none';
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       state.isChatOpen = false;
+      SoundFX.collabOff();
       showToast(`🔒 Collaboration turned off for "${folder.name}".`, 'info');
     }
 
     saveState();
     renderAll();
-    SoundFX.click();
   }
 
   function getActiveFolder() {
@@ -3130,6 +3218,7 @@
   }
 
   function openInviteModal(folder) {
+    SoundFX.modalOpen();
     if (!folder) folder = getActiveFolder();
     if (!folder) return;
 
@@ -3156,6 +3245,7 @@
   }
 
   function closeInviteModal() {
+    SoundFX.modalClose();
     if (dom.inviteMemberModal) {
       dom.inviteMemberModal.classList.remove('open');
     }
@@ -3450,8 +3540,13 @@
         });
       }
 
-      // Auto scroll to bottom
+      // Auto scroll to bottom smoothly & reliably
       dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+      requestAnimationFrame(() => {
+        if (dom.chatMessages) {
+          dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+        }
+      });
     }
   }
 
@@ -3465,6 +3560,47 @@
     return `${hours}:${mins} ${ampm}`;
   }
 
+  function startNewProjectChat(folder) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder) return;
+    ensureFolderCollaboration(folder);
+
+    const hasMessages = Array.isArray(folder.chat) && folder.chat.length > 0;
+    if (hasMessages) {
+      const confirmed = window.confirm(`Start a new chat session for "${folder.name}"?\nPrevious chat messages will be cleared.`);
+      if (!confirmed) return;
+    }
+
+    const user = getCurrentUserIdentity(folder);
+    folder.chat = [
+      {
+        id: 'msg-' + Date.now(),
+        isSystem: true,
+        text: `✨ ${user.name} started a new chat session`,
+        createdAt: Date.now()
+      }
+    ];
+
+    saveState();
+    SoundFX.newChat();
+    renderProjectChat(folder);
+    renderTopHeader();
+
+    if (dom.chatMessageInput) {
+      dom.chatMessageInput.value = '';
+      dom.chatMessageInput.focus();
+    }
+
+    showToast('✨ Started a new chat session', 'info');
+
+    // Real-time Firestore sync
+    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+      const fTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+      const fCats = state.categories.filter(c => c && c.folderId === folder.id);
+      window.CloudSync.syncCollaborativeProject(folder, fTasks, fCats);
+    }
+  }
+
   function sendChatMessage(folder, text) {
     if (!folder) folder = getActiveFolder();
     if (!folder || !text || !text.trim()) return;
@@ -3472,7 +3608,7 @@
 
     const user = getCurrentUserIdentity(folder);
     const newMsg = {
-      id: 'msg-' + Date.now(),
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       senderEmail: user.email,
       senderName: user.name,
       role: user.role,
@@ -3483,9 +3619,11 @@
     if (!Array.isArray(folder.chat)) folder.chat = [];
     folder.chat.push(newMsg);
     saveState();
-    SoundFX.playTone(660, 'sine', 0.08);
+    SoundFX.chatSend();
 
     renderProjectChat(folder);
+    renderTopHeader();
+
     if (dom.chatMessageInput) {
       dom.chatMessageInput.value = '';
       dom.chatMessageInput.focus();
@@ -3715,6 +3853,7 @@
   function handleSharedProjectIncomingSync(folderId, cloudData) {
     if (!cloudData || !folderId || !cloudData.folder) return;
     let folder = state.folders.find(f => f.id === folderId);
+    const prevChatCount = (folder && Array.isArray(folder.chat)) ? folder.chat.length : 0;
     const isNew = !folder;
 
     if (isNew) {
@@ -3774,12 +3913,27 @@
 
     saveState(true);
     renderAll();
+
+    // LIVE CHAT UPDATE & REAL-TIME AUDIO NOTIFICATION!
+    const incomingChat = Array.isArray(folder.chat) ? folder.chat : [];
+    const hasNewMessages = incomingChat.length > prevChatCount;
+
+    if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folderId)) {
+      renderProjectChat(folder);
+      if (hasNewMessages) {
+        SoundFX.chatReceive();
+      }
+    } else if (hasNewMessages) {
+      if (dom.chatUnreadDot) dom.chatUnreadDot.style.display = 'block';
+      SoundFX.chatReceive();
+    }
   }
 
   // ==========================================
   // 14. SETTINGS & PREFERENCES MODAL
   // ==========================================
   function openSettingsModal() {
+    SoundFX.modalOpen();
     if (dom.settingsLanguageSelect) {
       dom.settingsLanguageSelect.value = state.language || 'en';
     }
@@ -3798,6 +3952,7 @@
   }
 
   function closeSettingsModal() {
+    SoundFX.modalClose();
     if (dom.settingsModal) {
       dom.settingsModal.classList.remove('open');
     }
@@ -3897,7 +4052,7 @@
       btn.addEventListener('click', () => {
         state.activeView = { type: btn.dataset.view, id: null };
         renderAll();
-        SoundFX.click();
+        SoundFX.folderSwitch();
         closeMobileSidebar();
       });
     });
@@ -4177,6 +4332,12 @@
       dom.minimizeChatBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleProjectChat(false);
+      });
+    }
+    if (dom.newChatBtn) {
+      dom.newChatBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startNewProjectChat(getActiveFolder());
       });
     }
     if (dom.closeChatBtn) {

@@ -3085,7 +3085,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 190px;
+  max-width: 145px;
 }
 .chat-header-subtitle {
   font-size: 0.72rem;
@@ -3114,6 +3114,31 @@ html, body {
 .chat-action-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
+}
+
+.chat-action-btn.new-chat-btn {
+  width: auto;
+  height: 25px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: rgba(6, 182, 212, 0.15);
+  color: #67e8f9;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+.chat-action-btn.new-chat-btn:hover {
+  background: rgba(6, 182, 212, 0.28);
+  color: #ffffff;
+  border-color: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+.chat-action-btn.new-chat-btn svg {
+  flex-shrink: 0;
 }
 
 /* User Identity Bar inside Chat */
