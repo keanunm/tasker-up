@@ -290,11 +290,11 @@
 
               <!-- Due Date picker chip -->
               <div class="meta-date-wrap">
-                <label for="entryDueDateInput" class="meta-chip date-chip" title="Set Due Date">
+                <button type="button" class="meta-chip date-chip" id="entryDueDateBtn" title="Set Due Date">
                   <span class="chip-icon">📅</span>
                   <span class="chip-text" id="entryDueDateLabel">No Due Date</span>
-                </label>
-                <input type="date" id="entryDueDateInput">
+                </button>
+                <input type="date" id="entryDueDateInput" tabindex="-1" aria-hidden="true">
                 <button type="button" class="clear-date-chip-btn" id="clearEntryDueDateBtn" title="Remove due date" style="display: none;">×</button>
               </div>
 

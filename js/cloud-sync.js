@@ -17,6 +17,7 @@
   let saveDebounceTimer = null;
   let lastSyncedTimestamp = null;
   let isInitialized = false;
+  let lastInitError = null;
 
   // ==========================================
   // 1. CONFIGURATION MANAGEMENT
@@ -108,6 +109,7 @@
       return true;
     } catch (err) {
       console.error('Firebase initialization error:', err);
+      lastInitError = err;
       updateUIStatus('error', 'Cloud Config Error');
       return false;
     }
@@ -166,12 +168,18 @@
       (error) => {
         console.error('Firestore listener error:', error);
         updateUIStatus('error', 'Sync Error');
-        if (error.code === 'not-found' || (error.message && error.message.includes('not exist'))) {
-          showToast('Cloud Firestore database does not exist yet. Go to Firebase Console > Firestore Database and click "Create database".', 'error');
-        } else if (error.code === 'permission-denied') {
-          showToast('Firestore permission denied. Please allow read/write in Firebase Console > Firestore Database > Rules.', 'error');
+        const errMsg = (error && error.message) ? error.message : '';
+        const isPermissionDenied = (error && error.code === 'permission-denied') || 
+                                   (error && error.code === 'firestore/permission-denied') || 
+                                   errMsg.toLowerCase().includes('permission');
+        const isNotFound = (error && error.code === 'not-found') || errMsg.includes('not exist');
+
+        if (isNotFound) {
+          showToast('Firestore database not created yet. Go to Firebase Console > Firestore Database and click "Create database".', 'error');
+        } else if (isPermissionDenied) {
+          showToast('🔒 Firestore Rules: In Firebase Console > Firestore Database > Rules, set "allow read, write: if request.auth != null;" and click Publish.', 'error');
         } else {
-          showToast('Sync error: ' + error.message, 'error');
+          showToast('Sync error: ' + (errMsg || error.code || 'Unknown'), 'error');
         }
       }
     );
@@ -221,12 +229,18 @@
     } catch (err) {
       console.error('Cloud save failed:', err);
       updateUIStatus('error', 'Sync Failed');
-      if (err.code === 'not-found' || (err.message && err.message.includes('not exist'))) {
+      const errMsg = (err && err.message) ? err.message : '';
+      const isPermissionDenied = (err && err.code === 'permission-denied') || 
+                                 (err && err.code === 'firestore/permission-denied') || 
+                                 errMsg.toLowerCase().includes('permission');
+      const isNotFound = (err && err.code === 'not-found') || errMsg.includes('not exist');
+
+      if (isNotFound) {
         showToast('Firestore database not created yet. Please click "Create database" in Firebase Console > Firestore Database.', 'error');
-      } else if (err.code === 'permission-denied') {
-        showToast('Firestore permission denied. Please allow read/write in Firebase Console > Firestore Database > Rules.', 'error');
+      } else if (isPermissionDenied) {
+        showToast('🔒 Firestore Rules: In Firebase Console > Firestore Database > Rules, set "allow read, write: if request.auth != null;" and click Publish.', 'error');
       } else {
-        showToast('Could not save to cloud: ' + err.message, 'error');
+        showToast('Could not save to cloud: ' + (errMsg || err.code || 'Unknown'), 'error');
       }
     } finally {
       setTimeout(() => {
@@ -261,7 +275,7 @@
     }
 
     if (!initFirebase()) {
-      showToast('Please check your Firebase configuration.', 'error');
+      showToast('Firebase setup: ' + (lastInitError ? lastInitError.message : 'Please check your Firebase configuration in js/firebase-config.js.'), 'error');
       return;
     }
 

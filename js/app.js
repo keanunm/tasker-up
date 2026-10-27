@@ -937,6 +937,22 @@
       state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
     }
 
+    if (!state.activePersona) {
+      state.activePersona = {
+        email: (window.CloudSync && window.CloudSync.getCurrentUser() && window.CloudSync.getCurrentUser().email) || 'host@taskerup.io',
+        name: 'Host (You)',
+        role: 'host'
+      };
+    }
+
+    if (!state.activePersona) {
+      state.activePersona = {
+        email: (window.CloudSync && window.CloudSync.getCurrentUser() && window.CloudSync.getCurrentUser().email) || 'host@taskerup.io',
+        name: 'Host (You)',
+        role: 'host'
+      };
+    }
+
     const soundSetting = localStorage.getItem(SOUND_KEY);
     if (soundSetting !== null) {
       state.soundEnabled = soundSetting === 'true';
@@ -1207,6 +1223,7 @@
     entryPriorityDropdown: document.getElementById('entryPriorityDropdown'),
 
     metaDateWrap: document.querySelector('.meta-date-wrap'),
+    entryDueDateBtn: document.getElementById('entryDueDateBtn'),
     entryDueDateInput: document.getElementById('entryDueDateInput'),
     entryDueDateLabel: document.getElementById('entryDueDateLabel'),
     clearEntryDueDateBtn: document.getElementById('clearEntryDueDateBtn'),
@@ -1367,17 +1384,19 @@
     dom.foldersList.innerHTML = '';
 
     state.folders.forEach(folder => {
+      ensureFolderCollaboration(folder);
       const isCollapsed = !!state.collapsedFolders[folder.id];
       const folderTasks = state.tasks.filter(t => t.folderId === folder.id && !t.completed);
       const isFolderActive = state.activeView.type === 'folder' && state.activeView.id === folder.id;
       const childCategories = state.categories.filter(c => c.folderId === folder.id);
+      const hasMemberActivity = state.tasks.some(t => t.folderId === folder.id && t.memberCompleted);
 
       const group = document.createElement('div');
       group.className = `folder-group ${isCollapsed ? 'collapsed' : ''}`;
 
-      // 1. Folder Header Row
+      // 1. Folder Header Row with Member Activity Glow
       const headerRow = document.createElement('div');
-      headerRow.className = `folder-header-row ${isFolderActive ? 'active' : ''}`;
+      headerRow.className = `folder-header-row ${isFolderActive ? 'active' : ''} ${hasMemberActivity ? 'member-completed-glow' : ''}`;
       headerRow.innerHTML = `
         <div class="folder-item-left" style="display: flex; align-items: center; flex: 1; min-width: 0;">
           <button class="folder-toggle-btn" title="${isCollapsed ? 'Expand folder' : 'Collapse folder'}">
@@ -2828,7 +2847,8 @@
     if (!folder) return;
     ensureFolderCollaboration(folder);
 
-    const isHostViewing = state.activePersona && state.activePersona.role === 'host';
+    const currentPersona = getActivePersona();
+    const isHostViewing = currentPersona.role === 'host';
 
     // Populate Persona Selector
     if (dom.personaSelector) {
@@ -2837,14 +2857,14 @@
       const hostOpt = document.createElement('option');
       hostOpt.value = 'host';
       hostOpt.textContent = `👑 Host (${folder.hostEmail || 'You'})`;
-      if (state.activePersona.role === 'host') hostOpt.selected = true;
+      if (currentPersona.role === 'host') hostOpt.selected = true;
       dom.personaSelector.appendChild(hostOpt);
 
       folder.members.filter(m => m.role !== 'host').forEach(m => {
         const opt = document.createElement('option');
         opt.value = `member:${m.id}`;
         opt.textContent = `👤 Member (${m.name || m.email})`;
-        if (state.activePersona.role === 'member' && state.activePersona.email === m.email) {
+        if (currentPersona.role === 'member' && currentPersona.email === m.email) {
           opt.selected = true;
         }
         dom.personaSelector.appendChild(opt);
@@ -2853,10 +2873,10 @@
 
     // Role banner
     if (dom.personaRoleName) {
-      dom.personaRoleName.textContent = isHostViewing ? 'Host (Project Owner)' : `Member (${state.activePersona.name})`;
+      dom.personaRoleName.textContent = isHostViewing ? 'Host (Project Owner)' : `Member (${currentPersona.name})`;
     }
     if (dom.personaEmailDisplay) {
-      dom.personaEmailDisplay.textContent = `(${state.activePersona.email})`;
+      dom.personaEmailDisplay.textContent = `(${currentPersona.email})`;
     }
     if (dom.personaBadgeIcon) {
       dom.personaBadgeIcon.textContent = isHostViewing ? '👑' : '👤';
@@ -3043,21 +3063,23 @@
       dom.chatMembersOnline.textContent = `${folder.members.length} members collaborating`;
     }
 
+    const currentPersona = getActivePersona();
+
     // Populate chat speaking-as selector
     if (dom.chatSenderSelect) {
       dom.chatSenderSelect.innerHTML = '';
 
       const hostOpt = document.createElement('option');
       hostOpt.value = 'host';
-      hostOpt.textContent = `👑 Host (${folder.hostEmail.split('@')[0]})`;
-      if (state.activePersona.role === 'host') hostOpt.selected = true;
+      hostOpt.textContent = `👑 Host (${folder.hostEmail ? folder.hostEmail.split('@')[0] : 'You'})`;
+      if (currentPersona.role === 'host') hostOpt.selected = true;
       dom.chatSenderSelect.appendChild(hostOpt);
 
       folder.members.filter(m => m.role !== 'host').forEach(m => {
         const opt = document.createElement('option');
         opt.value = `member:${m.id}`;
         opt.textContent = `👤 ${m.name || m.email.split('@')[0]}`;
-        if (state.activePersona.role === 'member' && state.activePersona.email === m.email) {
+        if (currentPersona.role === 'member' && currentPersona.email === m.email) {
           opt.selected = true;
         }
         dom.chatSenderSelect.appendChild(opt);
@@ -3317,9 +3339,10 @@
   // 15. DROPDOWNS & POPOVERS MANAGEMENT
   // ==========================================
   function closeAllDropdowns() {
-    dom.entryFolderDropdown.classList.remove('open');
-    dom.entryCategoryDropdown.classList.remove('open');
-    dom.entryPriorityDropdown.classList.remove('open');
+    if (dom.entryFolderDropdown) dom.entryFolderDropdown.classList.remove('open');
+    if (dom.entryCategoryDropdown) dom.entryCategoryDropdown.classList.remove('open');
+    if (dom.entryPriorityDropdown) dom.entryPriorityDropdown.classList.remove('open');
+    document.querySelectorAll('.meta-dropdown-wrap').forEach(w => w.classList.remove('is-open'));
   }
 
   function closeMobileSidebar() {
@@ -3369,21 +3392,33 @@
       e.stopPropagation();
       const isOpen = dom.entryFolderDropdown.classList.contains('open');
       closeAllDropdowns();
-      if (!isOpen) dom.entryFolderDropdown.classList.add('open');
+      if (!isOpen) {
+        dom.entryFolderDropdown.classList.add('open');
+        const wrap = dom.entryFolderBtn.closest('.meta-dropdown-wrap');
+        if (wrap) wrap.classList.add('is-open');
+      }
     });
 
     dom.entryCategoryBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpen = dom.entryCategoryDropdown.classList.contains('open');
       closeAllDropdowns();
-      if (!isOpen) dom.entryCategoryDropdown.classList.add('open');
+      if (!isOpen) {
+        dom.entryCategoryDropdown.classList.add('open');
+        const wrap = dom.entryCategoryBtn.closest('.meta-dropdown-wrap');
+        if (wrap) wrap.classList.add('is-open');
+      }
     });
 
     dom.entryPriorityBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpen = dom.entryPriorityDropdown.classList.contains('open');
       closeAllDropdowns();
-      if (!isOpen) dom.entryPriorityDropdown.classList.add('open');
+      if (!isOpen) {
+        dom.entryPriorityDropdown.classList.add('open');
+        const wrap = dom.entryPriorityBtn.closest('.meta-dropdown-wrap');
+        if (wrap) wrap.classList.add('is-open');
+      }
     });
 
     // Priority dropdown selection items
@@ -3398,29 +3433,22 @@
     });
 
     // PC / Desktop calendar trigger on due date chip
-    const triggerDueDatePicker = () => {
-      if (dom.entryDueDateInput) {
-        if (typeof dom.entryDueDateInput.showPicker === 'function') {
-          try {
-            dom.entryDueDateInput.showPicker();
-            return;
-          } catch (err) {
-            console.debug('showPicker fallback:', err);
-          }
-        }
-        dom.entryDueDateInput.focus();
-      }
-    };
-
-    dom.entryDueDateInput.addEventListener('click', () => {
-      triggerDueDatePicker();
-    });
-
-    const dateChipLabel = dom.metaDateWrap ? dom.metaDateWrap.querySelector('.date-chip') : null;
-    if (dateChipLabel) {
-      dateChipLabel.addEventListener('click', (e) => {
+    if (dom.entryDueDateBtn) {
+      dom.entryDueDateBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        triggerDueDatePicker();
+        e.stopPropagation();
+        closeAllDropdowns();
+        if (dom.entryDueDateInput) {
+          if (typeof dom.entryDueDateInput.showPicker === 'function') {
+            try {
+              dom.entryDueDateInput.showPicker();
+              return;
+            } catch (err) {
+              console.debug('showPicker fallback:', err);
+            }
+          }
+          dom.entryDueDateInput.focus();
+        }
       });
     }
 
