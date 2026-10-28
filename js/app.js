@@ -3992,6 +3992,7 @@
       } catch (e) {}
       return;
     }
+    unmarkFolderAsDeleted(joinFolderId);
     if (!folder) {
       folder = {
         id: joinFolderId,
@@ -4206,8 +4207,8 @@
     state.tasks = state.tasks.filter(t => t && t.folderId !== folderId);
     state.categories = state.categories.filter(c => c && c.folderId !== folderId);
 
-    SoundFX.collabOff();
-    showToast(`🔒 "${folderName}" was deleted or closed by the host. You no longer have access.`, 'warning');
+    // Mark as deleted locally so background sync doesn't resurrect it
+    markFolderAsDeleted(folderId);
 
     saveState(true);
     renderAll();
@@ -4218,6 +4219,9 @@
 
     // 1. If user explicitly deleted this folder locally, NEVER recreate or resurrect it!
     if (isFolderDeleted(folderId)) {
+      if (window.CloudSync && typeof window.CloudSync.stopListeningToCollaborativeProject === 'function') {
+        window.CloudSync.stopListeningToCollaborativeProject(folderId);
+      }
       return;
     }
 
@@ -4279,7 +4283,9 @@
         renderAll();
         return;
       } else {
-        revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
+        if (localFolder) {
+          revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
+        }
         return;
       }
     }
@@ -4292,7 +4298,9 @@
     const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder && cloudData.folder.isCollaborative));
 
     if (isKicked) {
-      revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
+      if (localFolder) {
+        revokeKickedFolderAccess(folderId, (cloudData.folder && cloudData.folder.name) || 'Shared Project');
+      }
       return;
     }
 
