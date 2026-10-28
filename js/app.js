@@ -1403,7 +1403,7 @@
     importDataFileInput: document.getElementById('importDataFileInput'),
     resetDemoDataBtn: document.getElementById('resetDemoDataBtn'),
 
-    // Collaborators & Invite Modal
+    // Collaborators & Whitelist Modal
     inviteMemberModal: document.getElementById('inviteMemberModal'),
     inviteModalTitle: document.getElementById('inviteModalTitle'),
     inviteModalSubtitle: document.getElementById('inviteModalSubtitle'),
@@ -1411,9 +1411,13 @@
     doneInviteModalBtn: document.getElementById('doneInviteModalBtn'),
     projectInviteLinkInput: document.getElementById('projectInviteLinkInput'),
     copyInviteLinkBtn: document.getElementById('copyInviteLinkBtn'),
-    inviteMemberForm: document.getElementById('inviteMemberForm'),
-    inviteEmailInput: document.getElementById('inviteEmailInput'),
-    inviteRoleSelect: document.getElementById('inviteRoleSelect'),
+    whitelistEmailForm: document.getElementById('whitelistEmailForm') || document.getElementById('inviteMemberForm'),
+    whitelistEmailInput: document.getElementById('whitelistEmailInput') || document.getElementById('inviteEmailInput'),
+    whitelistRoleSelect: document.getElementById('whitelistRoleSelect') || document.getElementById('inviteRoleSelect'),
+    addWhitelistBtn: document.getElementById('addWhitelistBtn'),
+    inviteMemberForm: document.getElementById('whitelistEmailForm') || document.getElementById('inviteMemberForm'),
+    inviteEmailInput: document.getElementById('whitelistEmailInput') || document.getElementById('inviteEmailInput'),
+    inviteRoleSelect: document.getElementById('whitelistRoleSelect') || document.getElementById('inviteRoleSelect'),
     projectMembersList: document.getElementById('projectMembersList'),
     modalMembersCountBadge: document.getElementById('modalMembersCountBadge'),
 
@@ -1790,7 +1794,15 @@
       if (folder) {
         ensureFolderCollaboration(folder);
         const isCollab = isFolderCollaborative(folder);
-        badge = isCollab ? 'COLLABORATIVE PROJECT' : `Project: ${folder.icon}`;
+        const user = getCurrentUserIdentity(folder);
+        const isHost = user && user.role === 'host';
+        const isVisitor = user && (user.role === 'visitor' || user.role === 'viewer');
+
+        if (isCollab) {
+          badge = isVisitor ? '👁️ VISITOR ACCESS (VIEW-ONLY)' : 'COLLABORATIVE PROJECT';
+        } else {
+          badge = `Project: ${folder.icon}`;
+        }
         title = folder.name;
         desc = folder.desc || (isCollab ? `Shared collaborative project • ${folder.members.length} members` : `All tasks assigned to project ${folder.name}`);
 
@@ -1798,6 +1810,7 @@
           dom.projectCollabHeaderActions.style.display = 'inline-flex';
         }
         if (dom.toggleCollabBtn) {
+          dom.toggleCollabBtn.style.display = isHost ? 'inline-flex' : 'none';
           if (isCollab) {
             dom.toggleCollabBtn.classList.add('is-collab-active');
             if (dom.toggleCollabIcon) dom.toggleCollabIcon.textContent = '🔒';
@@ -1811,7 +1824,7 @@
           }
         }
         if (dom.viewHeaderInviteBtn) {
-          dom.viewHeaderInviteBtn.style.display = isCollab ? 'inline-flex' : 'none';
+          dom.viewHeaderInviteBtn.style.display = (isCollab && isHost) ? 'inline-flex' : 'none';
         }
         if (dom.viewHeaderChatBtn) {
           dom.viewHeaderChatBtn.style.display = isCollab ? 'inline-flex' : 'none';
@@ -2375,6 +2388,16 @@
 
     // Determine Category:
     // If user specified #categoryName, find or auto-create!
+    if (targetFolderId) {
+      const targetFolder = state.folders.find(f => f.id === targetFolderId);
+      if (targetFolder && isFolderCollaborative(targetFolder)) {
+        const user = getCurrentUserIdentity(targetFolder);
+        if (user && (user.role === 'visitor' || user.role === 'viewer')) {
+          showToast('👁️ Visitors have view-only access. You cannot create tasks in this project.', 'warning');
+          return;
+        }
+      }
+    }
     let targetCategoryId = state.entry.categoryId || null;
     if (parsed.categoryName) {
       const lower = parsed.categoryName.toLowerCase();
@@ -2439,6 +2462,15 @@
   function toggleTaskCompletion(taskId) {
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) return;
+
+    const folder = task.folderId ? state.folders.find(f => f.id === task.folderId) : null;
+    if (folder && isFolderCollaborative(folder)) {
+      const user = getCurrentUserIdentity(folder);
+      if (user && (user.role === 'visitor' || user.role === 'viewer')) {
+        showToast('👁️ Visitors have view-only access. Only Members and Hosts can complete tasks.', 'warning');
+        return;
+      }
+    }
 
     task.completed = !task.completed;
     if (task.completed) {
@@ -3118,9 +3150,12 @@
       if (folder.hostEmail && folder.hostEmail.toLowerCase() === email.toLowerCase()) {
         role = 'host';
       } else {
-        const mem = folder.members && folder.members.find(m => m.email.toLowerCase() === email.toLowerCase());
+        const mem = folder.members && folder.members.find(m => m.email && m.email.toLowerCase() === email.toLowerCase());
+        const wEntry = folder.whitelist && folder.whitelist.find(w => w && w.email && w.email.toLowerCase() === email.toLowerCase());
         if (mem) {
           role = mem.role || 'member';
+        } else if (wEntry) {
+          role = wEntry.role || 'member';
         } else if (storedRole) {
           role = storedRole;
         }
@@ -3128,6 +3163,7 @@
     } else {
       role = 'host';
     }
+    if (role === 'viewer') role = 'visitor';
 
     return { name, email, role };
   }
@@ -3147,6 +3183,7 @@
           color: COLLAB_PROJECT_COLOR,
           host: folder.hostEmail || 'host@taskerup.io',
           collab: true,
+          whitelist: folder.whitelist || [],
           kicked: folder.kickedEmails || []
         },
         c: childCategories.map(c => ({
@@ -3230,6 +3267,7 @@
       folder.isCollaborative = false;
     }
     if (!Array.isArray(folder.kickedEmails)) folder.kickedEmails = [];
+    if (!Array.isArray(folder.whitelist)) folder.whitelist = [];
     if (folder.isCollaborative) {
       if (!folder.color || folder.color === '#6366f1') {
         folder.color = COLLAB_PROJECT_COLOR;
@@ -3393,60 +3431,117 @@
       };
     }
 
-    // Host vs Member permission for invite form
-    if (dom.inviteMemberForm) {
-      dom.inviteMemberForm.style.display = isHostViewing ? 'flex' : 'none';
+    // Host vs Member permission for whitelist form
+    if (dom.whitelistEmailForm) {
+      dom.whitelistEmailForm.style.display = isHostViewing ? 'flex' : 'none';
     }
 
-    // Populate Members List with Kick Buttons
+    // Populate Whitelisted Access & Members List
     if (dom.projectMembersList) {
       dom.projectMembersList.innerHTML = '';
 
-      folder.members.forEach(member => {
+      const entries = [];
+      const seenEmails = new Set();
+
+      // 1. Host
+      const safeHostEmail = (folder.hostEmail || 'host@taskerup.io').toLowerCase().trim();
+      const hostMember = (folder.members || []).find(m => m.role === 'host') || {
+        email: safeHostEmail,
+        name: safeHostEmail.includes('@') ? safeHostEmail.split('@')[0] : 'Host',
+        role: 'host'
+      };
+      entries.push({
+        type: 'host',
+        name: hostMember.name || 'Host',
+        email: safeHostEmail,
+        role: 'host',
+        status: 'Host',
+        isHost: true,
+        avatarColor: '#f59e0b'
+      });
+      seenEmails.add(safeHostEmail);
+
+      // 2. Active Joined Members
+      (folder.members || []).forEach(member => {
+        const memEmail = (member.email || '').toLowerCase().trim();
+        if (member.role === 'host' || seenEmails.has(memEmail)) return;
+        seenEmails.add(memEmail);
+        const memRole = (member.role === 'visitor' || member.role === 'viewer') ? 'visitor' : 'member';
+        entries.push({
+          type: 'member',
+          name: member.name || (memEmail ? memEmail.split('@')[0] : 'Member'),
+          email: memEmail,
+          role: memRole,
+          status: 'Active',
+          avatarColor: member.avatarColor || '#3b82f6',
+          isHost: false
+        });
+      });
+
+      // 3. Pending Whitelisted emails (not yet joined)
+      (folder.whitelist || []).forEach(w => {
+        const wEmail = (w && w.email ? w.email : '').toLowerCase().trim();
+        if (!wEmail || seenEmails.has(wEmail)) return;
+        seenEmails.add(wEmail);
+        const wRole = (w.role === 'visitor' || w.role === 'viewer') ? 'visitor' : 'member';
+        entries.push({
+          type: 'whitelist_pending',
+          name: wEmail,
+          email: wEmail,
+          role: wRole,
+          status: 'Whitelisted',
+          avatarColor: '#8b5cf6',
+          isHost: false
+        });
+      });
+
+      entries.forEach(item => {
         const row = document.createElement('div');
         row.className = 'member-row-item';
 
-        const isMemberHost = member.role === 'host';
-        const roleLabel = isMemberHost ? 'Host' : (member.role === 'viewer' ? 'Viewer' : 'Member');
-        const roleClass = member.role || 'member';
+        const roleLabel = item.isHost ? 'Host' : (item.role === 'visitor' ? 'Visitor' : 'Member');
+        const roleClass = item.isHost ? 'host' : item.role;
+        const initial = (item.name || item.email || '?').charAt(0).toUpperCase();
 
-        const memberDisplayName = member.name || (member.email ? member.email.split('@')[0] : 'Member');
         row.innerHTML = `
           <div class="member-profile-wrap">
-            <div class="member-avatar-badge" style="background-color: ${member.avatarColor || '#3b82f6'};">
-              ${memberDisplayName.charAt(0).toUpperCase()}
+            <div class="member-avatar-badge" style="background-color: ${item.avatarColor || '#3b82f6'};">
+              ${item.isHost ? '👑' : initial}
             </div>
             <div class="member-details">
               <span class="member-name-text">
-                ${escapeHtml(memberDisplayName)}
-                ${isMemberHost ? '👑' : ''}
+                ${escapeHtml(item.name)}
+                ${item.isHost ? '👑' : ''}
               </span>
             </div>
           </div>
           <div class="member-actions-wrap">
+            <span class="whitelist-status-pill ${item.status === 'Active' || item.isHost ? 'active' : 'pending'}">${item.status}</span>
             <span class="role-badge ${roleClass}">${roleLabel}</span>
-            ${(!isMemberHost && isHostViewing) ? `<button type="button" class="kick-member-btn" data-id="${member.id}">Kick Member</button>` : ''}
+            ${(!item.isHost && isHostViewing) ? `<button type="button" class="kick-member-btn" data-email="${escapeHtml(item.email)}">Remove</button>` : ''}
           </div>
         `;
 
-        // Kick button listener for Host rank
-        const kickBtn = row.querySelector('.kick-member-btn');
-        if (kickBtn) {
-          kickBtn.addEventListener('click', () => {
-            kickMemberFromProject(folder, member.id);
-          });
+        if (!item.isHost && isHostViewing) {
+          const removeBtn = row.querySelector('.kick-member-btn');
+          if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+              removeEmailFromWhitelist(folder, item.email);
+            });
+          }
         }
 
         dom.projectMembersList.appendChild(row);
       });
-    }
 
-    if (dom.modalMembersCountBadge) {
-      dom.modalMembersCountBadge.textContent = `${folder.members.length} ${folder.members.length === 1 ? 'Collaborator' : 'Collaborators'}`;
+      if (dom.modalMembersCountBadge) {
+        dom.modalMembersCountBadge.textContent = `${entries.length} ${entries.length === 1 ? 'Collaborator' : 'Collaborators'}`;
+      }
     }
   }
 
-  function inviteMemberToProject(folder, email, role = 'member') {
+  function addEmailToWhitelist(folder, email, role = 'member') {
+    if (!folder) folder = getActiveFolder();
     if (!folder) return;
     ensureFolderCollaboration(folder);
 
@@ -3456,77 +3551,106 @@
       return;
     }
 
-    if (folder.members.some(m => m.email.toLowerCase() === email)) {
-      showToast(`${email} is already a member of this project!`, 'info');
+    if (!Array.isArray(folder.whitelist)) folder.whitelist = [];
+
+    const existing = folder.whitelist.find(w => w && w.email && w.email.toLowerCase() === email);
+    if (existing) {
+      if (existing.role !== role) {
+        existing.role = role;
+        const m = (folder.members || []).find(x => x.email && x.email.toLowerCase() === email);
+        if (m) m.role = role;
+        saveState(false, true);
+        renderInviteModalContent(folder);
+        renderAll();
+        showToast(`Updated ${email} access to ${role === 'visitor' ? 'Visitor' : 'Member'}!`, 'info');
+        return;
+      }
+      showToast(`${email} is already on the whitelist!`, 'info');
       return;
     }
 
-    const newMember = {
-      id: 'mem-' + Date.now(),
+    folder.whitelist.push({
       email: email,
-      name: email.split('@')[0],
       role: role,
-      joinedAt: Date.now(),
-      avatarColor: PRESET_COLORS[(folder.members.length + 1) % PRESET_COLORS.length]
-    };
-
-    folder.members.push(newMember);
-
-    // Add notification in small chat
-    folder.chat.push({
-      id: 'msg-' + Date.now(),
-      isSystem: true,
-      text: `👋 ${email} was invited as ${role === 'member' ? 'Member' : 'Viewer'} by Host.`,
-      createdAt: Date.now()
+      addedAt: Date.now()
     });
 
-    saveState();
+    if (Array.isArray(folder.kickedEmails)) {
+      folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase() !== email);
+    }
+
+    const user = getCurrentUserIdentity(folder);
+    const sysMsg = {
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      isSystem: true,
+      text: `🛡️ ${user.name} whitelisted ${email} as a ${role === 'visitor' ? 'Visitor' : 'Member'}`,
+      createdAt: Date.now()
+    };
+    if (!Array.isArray(folder.chat)) folder.chat = [];
+    folder.chat.push(sysMsg);
+
+    if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+      window.CloudSync.sendProjectChatMessage(folder.id, sysMsg);
+    }
+
+    saveState(false, true);
     SoundFX.complete();
+    showToast(`✅ Added ${email} to whitelist as ${role === 'visitor' ? 'Visitor' : 'Member'}!`, 'success');
 
-    const joinLink = generateProjectInviteLink(folder, role);
-    const subjectText = `Invitation to collaborate on project: ${folder.name}`;
-    const bodyText = `Hi!\n\nI have invited you to collaborate on the project "${folder.name}" on Tasker Up!\n\nClick this link to join and access the project tasks:\n${joinLink}\n\nSee you there!`;
-    const subject = encodeURIComponent(subjectText);
-    const body = encodeURIComponent(bodyText);
-    const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`;
-
-    showToast(`🎉 ${email} invited to "${folder.name}"!`, 'success');
-
-    // Display multi-channel delivery card
-    const successCard = document.getElementById('inviteSuccessCard');
-    if (successCard) {
-      successCard.style.display = 'block';
-      const successTitle = document.getElementById('inviteSuccessTitle');
-      const successDesc = document.getElementById('inviteSuccessDesc');
-      const gmailBtn = document.getElementById('openGmailInviteBtn');
-      const mailClientBtn = document.getElementById('openMailClientBtn');
-      const copyCardBtn = document.getElementById('copyInviteFromCardBtn');
-
-      if (successTitle) successTitle.textContent = `Invite prepared for ${email}!`;
-      if (successDesc) successDesc.textContent = `Send via Gmail web, default mail app, or copy join link:`;
-      if (gmailBtn) gmailBtn.href = gmailUrl;
-      if (mailClientBtn) mailClientBtn.href = mailtoUrl;
-      if (copyCardBtn) {
-        copyCardBtn.onclick = () => {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(joinLink).then(() => {
-              showToast('📋 Invite link copied to clipboard!', 'success');
-            });
-          }
-        };
-      }
-    }
-
-    try {
-      window.open(mailtoUrl, '_blank');
-    } catch (err) {
-      // pop-up blocker fallback
-    }
-
-    if (dom.inviteEmailInput) dom.inviteEmailInput.value = '';
     renderInviteModalContent(folder);
     renderAll();
+
+    if (dom.whitelistEmailInput) {
+      dom.whitelistEmailInput.value = '';
+      dom.whitelistEmailInput.focus();
+    }
+  }
+
+  function removeEmailFromWhitelist(folder, email) {
+    if (!folder) folder = getActiveFolder();
+    if (!folder || !email) return;
+    email = email.toLowerCase().trim();
+
+    const confirmed = window.confirm(`Remove "${email}" from this project's whitelist?\nThey will lose access to the project.`);
+    if (!confirmed) return;
+
+    if (Array.isArray(folder.whitelist)) {
+      folder.whitelist = folder.whitelist.filter(w => (w.email || '').toLowerCase().trim() !== email);
+    }
+
+    if (Array.isArray(folder.members)) {
+      folder.members = folder.members.filter(m => (m.email || '').toLowerCase().trim() !== email);
+    }
+
+    if (!Array.isArray(folder.kickedEmails)) folder.kickedEmails = [];
+    if (!folder.kickedEmails.includes(email)) {
+      folder.kickedEmails.push(email);
+    }
+
+    const user = getCurrentUserIdentity(folder);
+    const sysMsg = {
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      isSystem: true,
+      text: `🚫 ${email} was removed from the project whitelist by ${user.name}`,
+      createdAt: Date.now()
+    };
+    if (!Array.isArray(folder.chat)) folder.chat = [];
+    folder.chat.push(sysMsg);
+
+    if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+      window.CloudSync.sendProjectChatMessage(folder.id, sysMsg);
+    }
+
+    saveState(false, true);
+    SoundFX.delete();
+    showToast(`🚫 Removed ${email} from project whitelist.`, 'info');
+
+    renderInviteModalContent(folder);
+    renderAll();
+  }
+
+  function inviteMemberToProject(folder, email, role = 'member') {
+    addEmailToWhitelist(folder, email, role);
   }
 
   function kickMemberFromProject(folder, memberId) {
@@ -3541,9 +3665,12 @@
     }
 
     if (!Array.isArray(folder.kickedEmails)) folder.kickedEmails = [];
-    if (mem.email && !folder.kickedEmails.includes(mem.email.toLowerCase().trim())) {
-      folder.kickedEmails.push(mem.email.toLowerCase().trim());
+    if (!Array.isArray(folder.whitelist)) folder.whitelist = [];
+    const memEmail = (mem.email || '').toLowerCase().trim();
+    if (memEmail && !folder.kickedEmails.includes(memEmail)) {
+      folder.kickedEmails.push(memEmail);
     }
+    folder.whitelist = folder.whitelist.filter(w => (w.email || '').toLowerCase().trim() !== memEmail);
 
     folder.members = folder.members.filter(m => m.id !== memberId);
 
@@ -3961,91 +4088,74 @@
       });
     }
 
-    // Switch view immediately to this project
+    const memberName = defaultName || (defaultEmail ? defaultEmail.split('@')[0] : 'Collaborator');
+    const memberEmail = defaultEmail || (memberName.toLowerCase().replace(/[^a-z0-9]/g, '.') + '@collaborator.io');
+    const assignedRole = (folderRole === 'visitor' || folderRole === 'viewer') ? 'visitor' : 'member';
+
+    // Register member immediately without blocking modal
+    let memberObj = folder.members.find(m => m.email && m.email.toLowerCase() === memberEmail.toLowerCase());
+    const isNewMember = !memberObj;
+
+    if (isNewMember) {
+      memberObj = {
+        id: 'mem-' + Date.now(),
+        name: memberName,
+        email: memberEmail,
+        role: assignedRole,
+        joinedAt: Date.now(),
+        avatarColor: '#3b82f6'
+      };
+      folder.members.push(memberObj);
+
+      // System join announcement: "[name] has joined the [name of project] project"
+      const joinMsg = {
+        id: 'msg-join-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        isSystem: true,
+        text: `🎉 ${memberName} has joined the ${folder.name} project`,
+        createdAt: Date.now()
+      };
+      folder.chat.push(joinMsg);
+
+      if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+        window.CloudSync.sendProjectChatMessage(folder.id, joinMsg);
+      }
+    } else {
+      memberObj.role = assignedRole;
+      if (memberName && memberName !== 'Collaborator') memberObj.name = memberName;
+    }
+
+    localStorage.setItem('tasker_user_name', memberName);
+    localStorage.setItem('tasker_user_email', memberEmail);
+    localStorage.setItem('tasker_user_role', assignedRole);
+
+    folder.isCollaborative = true;
+    folder.color = COLLAB_PROJECT_COLOR;
+
+    // Switch view immediately to this project so user sees it right away!
     state.activeView = { type: 'folder', id: folder.id };
     state.entry.folderId = folder.id;
+
     saveState(false, true);
     renderAll();
 
-    if (dom.acceptProjectTitle) dom.acceptProjectTitle.textContent = `Join "${folder.name}"`;
-    if (dom.acceptFolderName) dom.acceptFolderName.textContent = folder.name;
-    if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folder.icon;
-    if (dom.acceptHostName) dom.acceptHostName.textContent = `Invited by ${hostEmail}`;
-    if (dom.acceptRoleBadge) dom.acceptRoleBadge.textContent = folderRole === 'viewer' ? 'Viewer' : 'Member';
-    if (dom.acceptMemberNameInput) dom.acceptMemberNameInput.value = defaultName;
+    // Connect cloud listener for real-time collaboration if available
+    if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
+      window.CloudSync.listenToCollaborativeProject(folder.id, (cloudData) => {
+        handleSharedProjectIncomingSync(folder.id, cloudData);
+      });
+    }
 
-    // Display package summary if available
-    if (dom.acceptPkgDetails && dom.acceptPkgSummary) {
-      if (taskCount > 0 || catCount > 0) {
-        dom.acceptPkgDetails.style.display = 'block';
-        dom.acceptPkgSummary.textContent = `📦 Includes ${taskCount} ${taskCount === 1 ? 'task' : 'tasks'} & ${catCount} ${catCount === 1 ? 'category' : 'categories'}`;
-      } else {
-        dom.acceptPkgDetails.style.display = 'none';
+    if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
+    showToast(`🎉 ${memberName} has joined the ${folder.name} project!`, 'success');
+    SoundFX.complete();
+
+    try {
+      let cleanUrl = window.location.origin + window.location.pathname;
+      if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+        cleanUrl = window.location.href.split('?')[0].split('#')[0];
       }
-    }
-
-    if (dom.acceptInviteModal) {
-      dom.acceptInviteModal.classList.add('open');
-    }
-
-    const confirmBtn = document.getElementById('confirmAcceptInviteBtn');
-    const declineBtn = document.getElementById('declineInviteBtn');
-
-    if (confirmBtn) {
-      confirmBtn.onclick = () => {
-        const memberName = (dom.acceptMemberNameInput ? dom.acceptMemberNameInput.value.trim() : '') || defaultName || 'Member';
-        const memberEmail = defaultEmail || (memberName.toLowerCase().replace(/\s+/g, '.') + '@collaborator.io');
-
-        if (!folder.members.some(m => m.email.toLowerCase() === memberEmail.toLowerCase())) {
-          folder.members.push({
-            id: 'mem-' + Date.now(),
-            name: memberName,
-            email: memberEmail,
-            role: folderRole,
-            joinedAt: Date.now(),
-            avatarColor: '#3b82f6'
-          });
-          folder.chat.push({
-            id: 'msg-' + Date.now(),
-            isSystem: true,
-            text: `🎉 ${memberName} joined the project as ${folderRole === 'viewer' ? 'Viewer' : 'Member'}!`,
-            createdAt: Date.now()
-          });
-        }
-
-        localStorage.setItem('tasker_user_name', memberName);
-        localStorage.setItem('tasker_user_email', memberEmail);
-        localStorage.setItem('tasker_user_role', folderRole);
-
-        folder.isCollaborative = true;
-        folder.color = COLLAB_PROJECT_COLOR;
-
-        state.activeView = { type: 'folder', id: folder.id };
-        state.entry.folderId = folder.id;
-
-        saveState();
-        renderAll();
-
-        // Connect cloud listener for real-time collaboration if available
-        if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
-          window.CloudSync.listenToCollaborativeProject(folder.id, (cloudData) => {
-            handleSharedProjectIncomingSync(folder.id, cloudData);
-          });
-        }
-
-        if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
-        showToast(`🎉 You joined "${folder.name}" with ${taskCount} tasks!`, 'success');
-        SoundFX.complete();
-
-        try {
-          let cleanUrl = window.location.origin + window.location.pathname;
-          if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
-            cleanUrl = window.location.href.split('?')[0].split('#')[0];
-          }
-          window.history.replaceState({}, document.title, cleanUrl);
-        } catch (e) {}
-      };
-    }
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch (e) {}
 
     if (declineBtn) {
       declineBtn.onclick = () => {
@@ -4136,7 +4246,15 @@
 
     const folderMembers = (Array.isArray(cloudData.folder.members) ? cloudData.folder.members : []);
     const memberEmails = (Array.isArray(cloudData.memberEmails) ? cloudData.memberEmails : []).map(e => (e || '').toLowerCase().trim());
-    const isStillMember = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || memberEmails.includes(myEmail);
+    const whitelist = [
+      ...(Array.isArray(cloudData.whitelist) ? cloudData.whitelist : []),
+      ...(Array.isArray(cloudData.folder && cloudData.folder.whitelist) ? cloudData.folder.whitelist : [])
+    ];
+    const whitelistEntry = whitelist.find(w => w && w.email && w.email.toLowerCase().trim() === myEmail);
+    const isWhitelisted = !!whitelistEntry;
+    const isStillMember = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || 
+                          memberEmails.includes(myEmail) || 
+                          isWhitelisted;
 
     // If project was deleted or collaboration was disabled by Host: kick all members out immediately
     const isCloudUnshared = (cloudData.isDeleted || (cloudData.folder && cloudData.folder.isDeleted) || cloudData.isClosed || (cloudData.folder && cloudData.folder.isClosed) || cloudData.isCollaborative === false || (cloudData.folder && cloudData.folder.isCollaborative === false));
@@ -4185,6 +4303,9 @@
     const isNew = !folder;
 
     if (isNew) {
+      const myRole = whitelistEntry ? (whitelistEntry.role === 'visitor' ? 'visitor' : 'member') : 'member';
+      const myName = (curUser && curUser.displayName) || localStorage.getItem('tasker_user_name') || (myEmail ? myEmail.split('@')[0] : 'Collaborator');
+
       folder = {
         id: folderId,
         name: cloudData.folder.name || 'Shared Project',
@@ -4195,10 +4316,35 @@
         isCollaborative: isCollabInCloud,
         isJoined: true,
         members: cloudData.folder.members || [],
+        whitelist: cloudData.folder.whitelist || cloudData.whitelist || [],
         chat: cloudData.folder.chat || []
       };
+
+      // If user is whitelisted, add them to members automatically if not present
+      if (myEmail && !folder.members.some(m => m.email && m.email.toLowerCase().trim() === myEmail)) {
+        folder.members.push({
+          id: 'mem-' + Date.now(),
+          name: myName,
+          email: myEmail,
+          role: myRole,
+          joinedAt: Date.now()
+        });
+
+        // Chat notification: [name] has joined the [name of project] project
+        const joinMsg = {
+          id: 'msg-join-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          isSystem: true,
+          text: `🎉 ${myName} has joined the ${folder.name} project as a ${myRole === 'visitor' ? 'Visitor' : 'Member'}`,
+          createdAt: Date.now()
+        };
+        folder.chat.push(joinMsg);
+        if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+          window.CloudSync.sendProjectChatMessage(folderId, joinMsg);
+        }
+      }
+
       state.folders.push(folder);
-      showToast(`📁 Joined collaborative project "${folder.name}"!`, 'info');
+      showToast(`📁 Access granted to "${folder.name}" as a ${myRole === 'visitor' ? 'Visitor' : 'Member'}!`, 'info');
     } else {
       folder.isCollaborative = isCollabInCloud;
       if (isCollabInCloud) {
@@ -4210,6 +4356,17 @@
       if (cloudData.folder.desc !== undefined) folder.desc = cloudData.folder.desc;
       if (cloudData.folder.icon) folder.icon = cloudData.folder.icon;
       if (cloudData.folder.members) folder.members = cloudData.folder.members;
+      if (cloudData.folder.whitelist) folder.whitelist = cloudData.folder.whitelist;
+      else if (cloudData.whitelist) folder.whitelist = cloudData.whitelist;
+
+      // Sync role if user is on whitelist
+      if (whitelistEntry && myEmail) {
+        const mem = folder.members && folder.members.find(m => m.email && m.email.toLowerCase().trim() === myEmail);
+        if (mem && mem.role !== whitelistEntry.role) {
+          mem.role = whitelistEntry.role;
+          localStorage.setItem('tasker_user_role', whitelistEntry.role);
+        }
+      }
     }
 
     if (cloudData.folder) {
@@ -4772,13 +4929,16 @@
     if (dom.doneInviteModalBtn) {
       dom.doneInviteModalBtn.addEventListener('click', closeInviteModal);
     }
-    if (dom.inviteMemberForm) {
-      dom.inviteMemberForm.addEventListener('submit', (e) => {
+    const whitelistForm = dom.whitelistEmailForm || dom.inviteMemberForm;
+    if (whitelistForm) {
+      whitelistForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const folder = getActiveFolder();
-        const email = dom.inviteEmailInput ? dom.inviteEmailInput.value : '';
-        const role = dom.inviteRoleSelect ? dom.inviteRoleSelect.value : 'member';
-        inviteMemberToProject(folder, email, role);
+        const emailInput = dom.whitelistEmailInput || dom.inviteEmailInput;
+        const roleSelect = dom.whitelistRoleSelect || dom.inviteRoleSelect;
+        const email = emailInput ? emailInput.value : '';
+        const role = roleSelect ? roleSelect.value : 'member';
+        addEmailToWhitelist(folder, email, role);
       });
     }
 

@@ -749,8 +749,8 @@
           <div class="invite-link-header">
             <span class="invite-link-icon">🔗</span>
             <div>
-              <strong class="invite-link-title">Share Project Invite Link</strong>
-              <p class="invite-link-desc">Anyone with this link can join this project as a member.</p>
+              <strong class="invite-link-title">Instant Invite Link</strong>
+              <p class="invite-link-desc">Opening this link immediately adds the member and opens the project.</p>
             </div>
           </div>
           <div class="invite-link-row">
@@ -762,64 +762,42 @@
           </div>
         </div>
 
-        <!-- Invite Form (Accessible to Host) -->
-        <form id="inviteMemberForm" class="invite-form-card">
+        <!-- Add Whitelist Email Form (Host Exclusive) -->
+        <form id="whitelistEmailForm" class="invite-form-card">
           <div class="invite-form-header">
-            <h3 class="invite-section-heading">Invite a Member via Email</h3>
+            <h3 class="invite-section-heading">Whitelist Email Access</h3>
             <span class="invite-rank-tag">Host Exclusive</span>
           </div>
+          <p class="whitelist-hint-text">
+            Add an email to the project whitelist. When this person opens or logs into Tasker Up, they will immediately see the folder as a <strong>Member</strong> or <strong>Visitor</strong>.
+          </p>
           <div class="invite-inputs-grid">
             <div class="form-group flex-1">
-              <label for="inviteEmailInput">Email Address</label>
-              <input type="email" id="inviteEmailInput" placeholder="colleague@domain.com" required autocomplete="off">
+              <label for="whitelistEmailInput">Email Address</label>
+              <input type="email" id="whitelistEmailInput" placeholder="colleague@domain.com" required autocomplete="off">
             </div>
             <div class="form-group">
-              <label for="inviteRoleSelect">Permission Rank</label>
-              <select id="inviteRoleSelect" class="custom-select">
-                <option value="member">👤 Member (Can complete tasks & chat)</option>
-                <option value="viewer">👁️ Viewer (Read-only tasks & chat)</option>
+              <label for="whitelistRoleSelect">Access Rank</label>
+              <select id="whitelistRoleSelect" class="custom-select">
+                <option value="member">👤 Member (Can edit & complete tasks)</option>
+                <option value="visitor">👁️ Visitor (View-only tasks & chat)</option>
               </select>
             </div>
           </div>
-          <button type="submit" class="primary-btn w-100" id="sendInviteBtn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-            <span>Invite Member</span>
+          <button type="submit" class="primary-btn w-100" id="addWhitelistBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Add to Whitelist</span>
           </button>
         </form>
 
-        <!-- Invite Success / Send Options Card -->
-        <div class="invite-success-card" id="inviteSuccessCard" style="display: none;">
-          <div class="invite-success-header">
-            <span class="invite-success-icon">✉️</span>
-            <div>
-              <strong id="inviteSuccessTitle">Invite Ready!</strong>
-              <p id="inviteSuccessDesc" style="margin: 0; font-size: 0.76rem; color: var(--text-dim);">Choose how to deliver the invitation:</p>
-            </div>
-          </div>
-          <div class="invite-send-options-row">
-            <a href="#" target="_blank" class="invite-option-btn gmail-btn" id="openGmailInviteBtn" title="Compose in Gmail Web">
-              <span class="btn-icon">📬</span>
-              <span>Open in Gmail Web</span>
-            </a>
-            <a href="#" class="invite-option-btn mail-client-btn" id="openMailClientBtn" title="Open Default Mail App">
-              <span class="btn-icon">✉️</span>
-              <span>Mail App</span>
-            </a>
-            <button type="button" class="invite-option-btn copy-btn" id="copyInviteFromCardBtn" title="Copy Join Link">
-              <span class="btn-icon">📋</span>
-              <span>Copy Link</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Current Project Members List with Host Kick Privileges -->
+        <!-- Whitelisted Emails & Current Members -->
         <div class="project-members-section">
           <div class="members-header">
-            <h3 class="invite-section-heading">Current Members</h3>
+            <h3 class="invite-section-heading">Whitelisted Access & Members</h3>
             <span class="members-count-badge" id="modalMembersCountBadge">1 Member</span>
           </div>
           <div class="members-list" id="projectMembersList">
-            <!-- Dynamic members: Host and Members with Kick button -->
+            <!-- Dynamic members: Host, Members & Whitelisted emails with Remove button -->
           </div>
         </div>
       </div>

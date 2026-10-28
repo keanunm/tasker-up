@@ -694,10 +694,18 @@
         folderId: folder.id
       }));
 
-      // Build lowercase member emails list for query discovery
+      // Build lowercase member emails list for query discovery (includes members & whitelist)
       const memberEmails = (folder.members || [])
         .map(m => m.email ? m.email.trim().toLowerCase() : '')
         .filter(Boolean);
+      if (Array.isArray(folder.whitelist)) {
+        folder.whitelist.forEach(w => {
+          const wEmail = (w && w.email) ? w.email.trim().toLowerCase() : '';
+          if (wEmail && !memberEmails.includes(wEmail)) {
+            memberEmails.push(wEmail);
+          }
+        });
+      }
       if (folder.hostEmail && !memberEmails.includes(folder.hostEmail.toLowerCase())) {
         memberEmails.push(folder.hostEmail.toLowerCase());
       }
@@ -714,6 +722,7 @@
         hostEmail: folder.hostEmail || (currentUser ? currentUser.email : 'host@taskerup.io'),
         isCollaborative: true,
         members: folder.members || [],
+        whitelist: folder.whitelist || [],
         kickedEmails: folder.kickedEmails || [],
         updatedAt: Date.now()
       });
@@ -725,6 +734,7 @@
 
       const projectData = sanitizeForFirestore({
         folder: cleanFolder,
+        whitelist: folder.whitelist || [],
         memberEmails: cleanMemberEmails,
         kickedEmails: cleanKickedEmails,
         tasks: cleanTasks,
