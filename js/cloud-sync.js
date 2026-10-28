@@ -202,26 +202,25 @@
    */
   /**
    * Deeply sanitizes an object or array for Cloud Firestore,
-   * completely removing all keys with `undefined` values and converting standalone undefined to null.
+   * completely removing all keys with `undefined` values and converting standalone undefined to null,
+   * while safely preserving Firestore FieldValue instances.
    */
   function sanitizeForFirestore(val) {
     if (val === undefined) return null;
     if (val === null) return null;
     if (typeof val === 'function' || typeof val === 'symbol') return null;
-    if (typeof val !== 'object') return val;
-    // Preserve Firestore FieldValue instances (e.g. serverTimestamp)
-    if (typeof val === 'object' && val.isEqual && typeof val.isEqual === 'function') return val;
-    try {
-      // Native JSON serialization removes all undefined keys from objects and turns undefined in arrays into null
-      const serialized = JSON.stringify(val);
-      if (serialized === undefined) return null;
-      return JSON.parse(serialized);
-    } catch (e) {
-      if (Array.isArray(val)) {
-        return val
-          .filter(item => item !== undefined)
-          .map(item => sanitizeForFirestore(item));
+    // Preserve Firestore FieldValue instances (e.g. serverTimestamp, arrayUnion, delete)
+    if (typeof val === 'object' && val !== null) {
+      if (typeof val.isEqual === 'function' || val._methodName || (val.constructor && val.constructor.name === 'FieldValue')) {
+        return val;
       }
+    }
+    if (Array.isArray(val)) {
+      return val
+        .filter(item => item !== undefined)
+        .map(item => sanitizeForFirestore(item));
+    }
+    if (typeof val === 'object') {
       const clean = {};
       for (const key of Object.keys(val)) {
         const v = val[key];
@@ -231,6 +230,7 @@
       }
       return clean;
     }
+    return val;
   }
 
   async function uploadCurrentWorkspaceToCloud(isInitial = false) {
@@ -255,13 +255,13 @@
       const rawFolders = payload.folders || [];
       const rawCategories = payload.categories || [];
 
-      const docData = {
-        tasks: sanitizeForFirestore(rawTasks),
-        folders: sanitizeForFirestore(rawFolders),
-        categories: sanitizeForFirestore(rawCategories),
+      const docData = sanitizeForFirestore({
+        tasks: rawTasks,
+        folders: rawFolders,
+        categories: rawCategories,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         deviceInfo: (navigator && navigator.userAgent) ? navigator.userAgent : 'web'
-      };
+      });
 
       await docRef.set(docData, { merge: true });
 
@@ -715,7 +715,6 @@
         isCollaborative: true,
         members: folder.members || [],
         kickedEmails: folder.kickedEmails || [],
-        chat: folder.chat || [],
         updatedAt: Date.now()
       });
 
@@ -724,7 +723,7 @@
       const cleanTasks = sanitizeForFirestore(safeTasks);
       const cleanCats = sanitizeForFirestore(safeCats);
 
-      await docRef.set({
+      const projectData = sanitizeForFirestore({
         folder: cleanFolder,
         memberEmails: cleanMemberEmails,
         kickedEmails: cleanKickedEmails,
@@ -732,7 +731,9 @@
         categories: cleanCats,
         updatedAt: Date.now(),
         updatedBy: currentUser ? (currentUser.displayName || currentUser.email || 'user') : 'user'
-      }, { merge: true });
+      });
+
+      await docRef.set(projectData, { merge: true });
     } catch (err) {
       console.warn('syncCollaborativeProject failed', err);
     }
@@ -898,6 +899,90 @@
     }
   }
 
+  /**
+   * Atomically appends a chat message to a collaborative project using Firestore's arrayUnion.
+   * Eliminates chat message overwrite race conditions between simultaneous senders.
+   */
+  async function sendProjectChatMessage(folderId, message) {
+    if (!db || !folderId || !message) return;
+    const cleanMsg = sanitizeForFirestore(message);
+    const docRef = db.collection('shared_projects').doc(folderId);
+    try {
+      await docRef.update({
+        'folder.chat': firebase.firestore.FieldValue.arrayUnion(cleanMsg),
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      try {
+        await docRef.set({
+          folder: {
+            chat: firebase.firestore.FieldValue.arrayUnion(cleanMsg)
+          },
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (fallbackErr) {
+        console.error('sendProjectChatMessage failed', fallbackErr);
+      }
+    }
+  }
+
+  /**
+   * Resets the project chat array (e.g. when starting a New Chat session).
+   */
+  async function resetProjectChat(folderId, initialMsg) {
+    if (!db || !folderId) return;
+    try {
+      const docRef = db.collection('shared_projects').doc(folderId);
+      const chatArray = initialMsg ? [sanitizeForFirestore(initialMsg)] : [];
+      await docRef.set({
+        folder: {
+          chat: chatArray
+        },
+        updatedAt: Date.now()
+      }, { merge: true });
+    } catch (err) {
+      console.error('resetProjectChat failed', err);
+    }
+  }
+
+  /**
+   * Sets or clears typing indicator status for a member in a collaborative project.
+   */
+  async function setTypingStatus(folderId, user, isTyping) {
+    if (!db || !folderId || !user || !user.email) return;
+    const safeKey = user.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const docRef = db.collection('shared_projects').doc(folderId);
+    try {
+      if (isTyping) {
+        await docRef.update({
+          [`typing.${safeKey}`]: {
+            name: user.name || user.email.split('@')[0],
+            email: user.email.toLowerCase(),
+            timestamp: Date.now()
+          }
+        });
+      } else {
+        await docRef.update({
+          [`typing.${safeKey}`]: firebase.firestore.FieldValue.delete()
+        });
+      }
+    } catch (err) {
+      if (isTyping) {
+        try {
+          await docRef.set({
+            typing: {
+              [safeKey]: {
+                name: user.name || user.email.split('@')[0],
+                email: user.email.toLowerCase(),
+                timestamp: Date.now()
+              }
+            }
+          }, { merge: true });
+        } catch (e) {}
+      }
+    }
+  }
+
   // ==========================================
   // EXPORT
   // ==========================================
@@ -910,6 +995,11 @@
     openAuthModal,
     signOut,
     syncCollaborativeProject,
-    listenToCollaborativeProject
+    unshareCollaborativeProject,
+    deleteCollaborativeProject,
+    listenToCollaborativeProject,
+    sendProjectChatMessage,
+    resetProjectChat,
+    setTypingStatus
   };
 })();

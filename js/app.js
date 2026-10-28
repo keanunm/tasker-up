@@ -1447,6 +1447,8 @@
     chatMessageForm: document.getElementById('chatMessageForm'),
     chatMessageInput: document.getElementById('chatMessageInput'),
     chatSendBtn: document.getElementById('chatSendBtn'),
+    chatTypingRow: document.getElementById('chatTypingRow'),
+    chatTypingSender: document.getElementById('chatTypingSender'),
 
     // Toasts
     toastContainer: document.getElementById('toastContainer')
@@ -3604,12 +3606,14 @@
       if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'none';
       if (dom.chatUnreadDot) dom.chatUnreadDot.style.display = 'none';
       renderProjectChat(folder);
+      renderTypingIndicator(folder.id);
       setTimeout(() => {
         if (dom.chatMessageInput) dom.chatMessageInput.focus();
       }, 50);
     } else {
       if (dom.chatWindow) dom.chatWindow.style.display = 'none';
       if (dom.chatFloatingBtn) dom.chatFloatingBtn.style.display = 'inline-flex';
+      broadcastCurrentTyping(false);
     }
   }
 
@@ -3683,6 +3687,70 @@
     return `${hours}:${mins} ${ampm}`;
   }
 
+  // ==========================================
+  // REAL-TIME TYPING INDICATOR
+  // ==========================================
+  let typingThrottleTimer = null;
+  let typingIdleTimer = null;
+
+  function broadcastCurrentTyping(isTyping) {
+    const folder = getActiveFolder();
+    if (!folder || !isFolderCollaborative(folder)) return;
+    const user = getCurrentUserIdentity(folder);
+    if (window.CloudSync && typeof window.CloudSync.setTypingStatus === 'function') {
+      window.CloudSync.setTypingStatus(folder.id, user, isTyping);
+    }
+  }
+
+  function renderTypingIndicator(folderId) {
+    if (!dom.chatTypingRow || !dom.chatTypingSender) return;
+    if (!folderId) {
+      const activeFolder = getActiveFolder();
+      folderId = activeFolder ? activeFolder.id : null;
+    }
+    if (!state.isChatOpen || !folderId || (state.activeCollabFolderId && state.activeCollabFolderId !== folderId)) {
+      dom.chatTypingRow.style.display = 'none';
+      return;
+    }
+
+    const folder = state.folders.find(f => f.id === folderId);
+    const curUser = getCurrentUserIdentity(folder);
+    const curEmail = (curUser && curUser.email) ? curUser.email.toLowerCase() : '';
+    const typingObj = (state.typingMap && state.typingMap[folderId]) || {};
+    const now = Date.now();
+
+    const activeTypingNames = [];
+    Object.values(typingObj).forEach(entry => {
+      if (!entry || !entry.email || !entry.name) return;
+      if (entry.email.toLowerCase() === curEmail) return;
+      if (now - (entry.timestamp || 0) < 4500) {
+        activeTypingNames.push(entry.name);
+      }
+    });
+
+    if (activeTypingNames.length === 0) {
+      dom.chatTypingRow.style.display = 'none';
+    } else {
+      dom.chatTypingRow.style.display = 'flex';
+      let label = '';
+      if (activeTypingNames.length === 1) {
+        label = `${activeTypingNames[0]} is typing`;
+      } else if (activeTypingNames.length === 2) {
+        label = `${activeTypingNames[0]} and ${activeTypingNames[1]} are typing`;
+      } else {
+        label = `${activeTypingNames[0]} and ${activeTypingNames.length - 1} others are typing`;
+      }
+      dom.chatTypingSender.textContent = label;
+
+      if (dom.chatMessages) {
+        const isNearBottom = dom.chatMessages.scrollHeight - dom.chatMessages.scrollTop - dom.chatMessages.clientHeight < 120;
+        if (isNearBottom) {
+          dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+        }
+      }
+    }
+  }
+
   function startNewProjectChat(folder) {
     if (!folder) folder = getActiveFolder();
     if (!folder) return;
@@ -3695,16 +3763,15 @@
     }
 
     const user = getCurrentUserIdentity(folder);
-    folder.chat = [
-      {
-        id: 'msg-' + Date.now(),
-        isSystem: true,
-        text: `✨ ${user.name} started a new chat session`,
-        createdAt: Date.now()
-      }
-    ];
+    const systemMsg = {
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      isSystem: true,
+      text: `✨ ${user.name} started a new chat session`,
+      createdAt: Date.now()
+    };
+    folder.chat = [systemMsg];
 
-    saveState();
+    saveState(true);
     SoundFX.newChat();
     renderProjectChat(folder);
     renderTopHeader();
@@ -3716,11 +3783,9 @@
 
     showToast('✨ Started a new chat session', 'info');
 
-    // Real-time Firestore sync
-    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
-      const fTasks = state.tasks.filter(t => t && t.folderId === folder.id);
-      const fCats = state.categories.filter(c => c && c.folderId === folder.id);
-      window.CloudSync.syncCollaborativeProject(folder, fTasks, fCats);
+    // Real-time Firestore reset
+    if (window.CloudSync && typeof window.CloudSync.resetProjectChat === 'function') {
+      window.CloudSync.resetProjectChat(folder.id, systemMsg);
     }
   }
 
@@ -3731,7 +3796,7 @@
 
     const user = getCurrentUserIdentity(folder);
     const newMsg = {
-      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
       senderEmail: user.email,
       senderName: user.name,
       role: user.role,
@@ -3741,7 +3806,7 @@
 
     if (!Array.isArray(folder.chat)) folder.chat = [];
     folder.chat.push(newMsg);
-    saveState();
+    saveState(true);
     SoundFX.chatSend();
 
     renderProjectChat(folder);
@@ -3752,11 +3817,17 @@
       dom.chatMessageInput.focus();
     }
 
-    // Sync to cloud Firestore in real-time if available
-    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
-      const fTasks = state.tasks.filter(t => t && t.folderId === folder.id);
-      const fCats = state.categories.filter(c => c && c.folderId === folder.id);
-      window.CloudSync.syncCollaborativeProject(folder, fTasks, fCats);
+    // Immediately clear typing state on message send
+    clearTimeout(typingIdleTimer);
+    if (typingThrottleTimer) {
+      clearTimeout(typingThrottleTimer);
+      typingThrottleTimer = null;
+    }
+    broadcastCurrentTyping(false);
+
+    // Sync to cloud Firestore atomically via FieldValue.arrayUnion to prevent race condition overwrites
+    if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+      window.CloudSync.sendProjectChatMessage(folder.id, newMsg);
     }
   }
 
@@ -4139,13 +4210,48 @@
       if (cloudData.folder.desc !== undefined) folder.desc = cloudData.folder.desc;
       if (cloudData.folder.icon) folder.icon = cloudData.folder.icon;
       if (cloudData.folder.members) folder.members = cloudData.folder.members;
-      if (cloudData.folder.chat) folder.chat = cloudData.folder.chat;
     }
 
     if (cloudData.folder) {
       if (cloudData.folder.name) folder.name = cloudData.folder.name;
       if (cloudData.folder.members) folder.members = cloudData.folder.members;
-      if (cloudData.folder.chat) folder.chat = cloudData.folder.chat;
+    }
+
+    // Merge incoming chat messages non-destructively by unique message ID
+    if (cloudData.folder && Array.isArray(cloudData.folder.chat)) {
+      const remoteChat = cloudData.folder.chat;
+      const localChat = Array.isArray(folder.chat) ? folder.chat : [];
+
+      const isRemoteReset = remoteChat.length === 1 &&
+                            remoteChat[0].isSystem &&
+                            (!localChat.length || (remoteChat[0].createdAt || 0) > (localChat[0].createdAt || 0));
+
+      if (isRemoteReset) {
+        folder.chat = remoteChat;
+      } else {
+        const chatMap = new Map();
+        localChat.forEach(m => {
+          if (m && (m.id || m.text)) {
+            chatMap.set(m.id || (`${m.senderEmail || 'u'}-${m.createdAt || 0}`), m);
+          }
+        });
+        remoteChat.forEach(m => {
+          if (m && (m.id || m.text)) {
+            chatMap.set(m.id || (`${m.senderEmail || 'u'}-${m.createdAt || 0}`), m);
+          }
+        });
+        folder.chat = Array.from(chatMap.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      }
+    }
+
+    // Update real-time typing indicators
+    if (cloudData.typing && typeof cloudData.typing === 'object') {
+      state.typingMap = state.typingMap || {};
+      state.typingMap[folderId] = cloudData.typing;
+      renderTypingIndicator(folderId);
+    } else if (state.typingMap && state.typingMap[folderId]) {
+      state.typingMap[folderId] = {};
+      renderTypingIndicator(folderId);
     }
 
     if (Array.isArray(cloudData.tasks)) {
@@ -4178,13 +4284,17 @@
     // LIVE CHAT UPDATE & REAL-TIME AUDIO NOTIFICATION!
     const incomingChat = Array.isArray(folder.chat) ? folder.chat : [];
     const hasNewMessages = incomingChat.length > prevChatCount;
+    const userIdentity = getCurrentUserIdentity(folder);
+    const lastMsg = incomingChat[incomingChat.length - 1];
+    const isMine = lastMsg && userIdentity && (lastMsg.senderEmail || '').toLowerCase() === (userIdentity.email || '').toLowerCase();
 
     if (state.isChatOpen && (!state.activeCollabFolderId || state.activeCollabFolderId === folderId)) {
       renderProjectChat(folder);
-      if (hasNewMessages) {
+      renderTypingIndicator(folderId);
+      if (hasNewMessages && !isMine && !lastMsg?.isSystem) {
         SoundFX.chatReceive();
       }
-    } else if (hasNewMessages) {
+    } else if (hasNewMessages && !isMine && !lastMsg?.isSystem) {
       if (dom.chatUnreadDot) dom.chatUnreadDot.style.display = 'block';
       SoundFX.chatReceive();
     }
@@ -4707,6 +4817,34 @@
       });
     }
     if (dom.chatMessageInput) {
+      dom.chatMessageInput.addEventListener('input', () => {
+        const hasText = dom.chatMessageInput.value.trim().length > 0;
+        if (!hasText) {
+          clearTimeout(typingIdleTimer);
+          broadcastCurrentTyping(false);
+          return;
+        }
+
+        // Throttle typing broadcasts to once every 2 seconds
+        if (!typingThrottleTimer) {
+          broadcastCurrentTyping(true);
+          typingThrottleTimer = setTimeout(() => {
+            typingThrottleTimer = null;
+          }, 2000);
+        }
+
+        // Auto-clear typing indicator after 3.5s of inactivity
+        clearTimeout(typingIdleTimer);
+        typingIdleTimer = setTimeout(() => {
+          broadcastCurrentTyping(false);
+        }, 3500);
+      });
+
+      dom.chatMessageInput.addEventListener('blur', () => {
+        clearTimeout(typingIdleTimer);
+        broadcastCurrentTyping(false);
+      });
+
       dom.chatMessageInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -4952,6 +5090,13 @@
         }
       });
     }
+
+    // Periodic sweep for expired typing indicators (every 1 second)
+    setInterval(() => {
+      if (state.isChatOpen) {
+        renderTypingIndicator(state.activeCollabFolderId || (getActiveFolder() && getActiveFolder().id));
+      }
+    }, 1000);
   }
 
   // Boot on DOM ready

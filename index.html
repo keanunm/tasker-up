@@ -871,6 +871,18 @@
         <!-- Messages rendered dynamically -->
       </div>
 
+      <!-- Typing Indicator -->
+      <div class="chat-typing-row" id="chatTypingRow" style="display: none;">
+        <div class="chat-typing-bubble">
+          <span class="chat-typing-sender" id="chatTypingSender"></span>
+          <div class="chat-typing-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+      </div>
+
       <!-- Message Input Form -->
       <form id="chatMessageForm" class="chat-input-form" onsubmit="event.preventDefault(); return false;">
         <input 
