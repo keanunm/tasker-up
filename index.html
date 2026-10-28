@@ -746,8 +746,8 @@
           <div class="invite-link-header">
             <span class="invite-link-icon">🔗</span>
             <div>
-              <strong class="invite-link-title">Instant Invite Link</strong>
-              <p class="invite-link-desc">Opening this link immediately adds the member and opens the project.</p>
+              <strong class="invite-link-title">Project Invite Link</strong>
+              <p class="invite-link-desc">Whitelisted members can use this link to join and open this project.</p>
             </div>
           </div>
           <div class="invite-link-row">
@@ -884,8 +884,10 @@
       </div>
       <h2 class="modal-title" id="acceptProjectTitle">Project Invitation</h2>
       <p class="modal-subtitle" id="acceptProjectDesc" style="margin-top: 6px; margin-bottom: 20px;">
-        You have been invited to collaborate on this project on Tasker Up!
+        This is a private project. Enter your whitelisted email to verify access and join.
       </p>
+
+      <div id="acceptInviteErrorBox" class="accept-invite-error" style="display: none;"></div>
 
       <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; text-align: left;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -898,7 +900,7 @@
         <div style="display: flex; gap: 8px; font-size: 0.78rem; color: var(--text-muted);">
           <span>Role: <strong style="color: #60a5fa;" id="acceptRoleBadge">Member</strong></span>
           <span>•</span>
-          <span>Can complete tasks & chat</span>
+          <span>Whitelist access required</span>
         </div>
 
         <!-- Package contents preview banner -->
@@ -907,14 +909,20 @@
         </div>
       </div>
 
+      <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+        <label for="acceptMemberEmailInput">Whitelisted Email Address</label>
+        <input type="email" id="acceptMemberEmailInput" class="custom-input" placeholder="colleague@domain.com" required autocomplete="email">
+        <span class="form-hint" style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; display: block;">Must match the email added to the project's whitelist by the host.</span>
+      </div>
+
       <div class="form-group" style="text-align: left; margin-bottom: 20px;">
-        <label for="acceptMemberNameInput">Your Name</label>
-        <input type="text" id="acceptMemberNameInput" placeholder="Enter your name" required autocomplete="name">
+        <label for="acceptMemberNameInput">Your Display Name</label>
+        <input type="text" id="acceptMemberNameInput" class="custom-input" placeholder="Enter your display name" required autocomplete="name">
       </div>
 
       <div style="display: flex; gap: 10px;">
-        <button type="button" class="secondary-btn flex-1" id="declineInviteBtn">Decline</button>
-        <button type="button" class="primary-btn flex-1" id="confirmAcceptInviteBtn">Accept & Join</button>
+        <button type="button" class="secondary-btn flex-1" id="declineInviteBtn">Cancel</button>
+        <button type="button" class="primary-btn flex-1" id="confirmAcceptInviteBtn">Verify & Join</button>
       </div>
     </div>
   </div>

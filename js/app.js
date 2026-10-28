@@ -935,6 +935,10 @@
       this.playTone(320, 'sine', 0.15, 0.07);
       setTimeout(() => this.playTone(220, 'sine', 0.2, 0.06), 70);
     },
+    error() {
+      this.playTone(220, 'sawtooth', 0.15, 0.08);
+      setTimeout(() => this.playTone(180, 'sawtooth', 0.2, 0.08), 80);
+    },
     chatSend() {
       // Crisp upward whoosh pop
       this.playSweep(420, 880, 'sine', 0.1, 0.07);
@@ -1444,6 +1448,8 @@
     acceptHostName: document.getElementById('acceptHostName'),
     acceptRoleBadge: document.getElementById('acceptRoleBadge'),
     acceptMemberNameInput: document.getElementById('acceptMemberNameInput'),
+    acceptMemberEmailInput: document.getElementById('acceptMemberEmailInput'),
+    acceptInviteErrorBox: document.getElementById('acceptInviteErrorBox'),
     acceptPkgDetails: document.getElementById('acceptPkgDetails'),
     acceptPkgSummary: document.getElementById('acceptPkgSummary'),
     confirmAcceptInviteBtn: document.getElementById('confirmAcceptInviteBtn'),
@@ -3253,18 +3259,8 @@
     }
     const params = new URLSearchParams();
     params.set('join', folder.id);
-    params.set('name', folder.name);
-    params.set('icon', folder.icon || '📁');
-    params.set('color', COLLAB_PROJECT_COLOR);
-    params.set('role', role);
-    if (folder.hostEmail) params.set('host', folder.hostEmail);
 
-    const pkg = serializeProjectPackage(folder);
-    if (pkg) {
-      params.set('pkg', pkg);
-    }
-
-    // Sync to cloud Firestore if available
+    // Sync to cloud Firestore if available so project and whitelist are live
     if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
       const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
       const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
@@ -3971,76 +3967,147 @@
     }
   }
 
-  function checkUrlJoinInvitation() {
+  async function checkUrlJoinInvitation() {
     const params = new URLSearchParams(window.location.search);
     const joinFolderId = params.get('join');
     if (!joinFolderId) return;
 
-    const folderName = params.get('name') || 'Shared Project';
-    const folderIcon = params.get('icon') || '📁';
-    const folderRole = params.get('role') || 'member';
-    const hostEmail = params.get('host') || 'Host';
-    const pkgStr = params.get('pkg');
-    const projectPkg = deserializeProjectPackage(pkgStr);
-
-    let folder = state.folders.find(f => f.id === joinFolderId);
-
-    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
-    const defaultEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
-    const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
-
-    // Allow rejoining via invite link even if previously kicked: unban and unmark deleted
-    unmarkFolderAsDeleted(joinFolderId);
-    if (folder && Array.isArray(folder.kickedEmails) && defaultEmail) {
-      folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase().trim() !== defaultEmail.toLowerCase().trim());
+    function cleanUrlParams() {
+      try {
+        let cleanUrl = window.location.origin + window.location.pathname;
+        if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
+          cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        }
+        window.history.replaceState({}, document.title, cleanUrl);
+      } catch (e) {}
     }
-    if (!folder) {
-      folder = {
-        id: joinFolderId,
-        name: (projectPkg && projectPkg.f && projectPkg.f.name) || folderName,
-        icon: (projectPkg && projectPkg.f && projectPkg.f.icon) || folderIcon,
-        color: COLLAB_PROJECT_COLOR,
-        desc: (projectPkg && projectPkg.f && projectPkg.f.desc) || `Shared project invited by ${hostEmail}`,
-        hostEmail: (projectPkg && projectPkg.f && projectPkg.f.host) || hostEmail,
-        isCollaborative: true,
-        isJoined: true,
-        members: [
-          {
-            id: 'mem-host-' + joinFolderId,
-            email: hostEmail,
-            name: hostEmail.includes('@') ? hostEmail.split('@')[0] : hostEmail,
-            role: 'host',
-            joinedAt: Date.now() - 3600000,
-            avatarColor: '#f59e0b'
-          }
-        ],
-        chat: (projectPkg && projectPkg.chat && projectPkg.chat.length) ? projectPkg.chat : [
-          {
-            id: 'msg-' + Date.now(),
-            isSystem: true,
-            text: `📁 Project shared by ${hostEmail}`,
-            createdAt: Date.now()
-          }
-        ]
-      };
-      state.folders.unshift(folder);
-    } else {
-      state.folders = [folder, ...state.folders.filter(f => f.id !== folder.id)];
-      folder.isCollaborative = true;
-      folder.color = COLLAB_PROJECT_COLOR;
-      if (projectPkg && projectPkg.f && projectPkg.f.name) {
-        folder.name = projectPkg.f.name;
+
+    // 1. Resolve folder data & its whitelist from memory, cloud Firestore, or legacy package
+    let folder = state.folders.find(f => f.id === joinFolderId);
+    let cloudData = null;
+
+    if (window.CloudSync && typeof window.CloudSync.getCollaborativeProject === 'function') {
+      try {
+        cloudData = await window.CloudSync.getCollaborativeProject(joinFolderId);
+      } catch (err) {
+        console.warn('Could not fetch collaborative project', err);
       }
     }
 
-    ensureFolderCollaboration(folder);
+    const pkgStr = params.get('pkg');
+    const projectPkg = deserializeProjectPackage(pkgStr);
 
-    // Immediately import categories and tasks so the folder and tasks appear on screen right away!
-    const taskCount = (projectPkg && projectPkg.t) ? projectPkg.t.length : 0;
-    const catCount = (projectPkg && projectPkg.c) ? projectPkg.c.length : 0;
+    const folderName = (folder && folder.name)
+      || (cloudData && cloudData.folder && cloudData.folder.name)
+      || (projectPkg && projectPkg.f && projectPkg.f.name)
+      || params.get('name')
+      || 'Shared Project';
 
-    if (projectPkg && Array.isArray(projectPkg.c)) {
-      projectPkg.c.forEach(cat => {
+    const folderIcon = (folder && folder.icon)
+      || (cloudData && cloudData.folder && cloudData.folder.icon)
+      || (projectPkg && projectPkg.f && projectPkg.f.icon)
+      || params.get('icon')
+      || '📁';
+
+    const hostEmail = (
+      (folder && folder.hostEmail)
+      || (cloudData && cloudData.folder && cloudData.folder.hostEmail)
+      || (projectPkg && projectPkg.f && projectPkg.f.host)
+      || params.get('host')
+      || ''
+    ).toLowerCase().trim();
+
+    // Collect whitelist entries
+    let whitelist = [];
+    if (folder && Array.isArray(folder.whitelist) && folder.whitelist.length) {
+      whitelist = folder.whitelist;
+    } else if (cloudData && Array.isArray(cloudData.whitelist) && cloudData.whitelist.length) {
+      whitelist = cloudData.whitelist;
+    } else if (cloudData && cloudData.folder && Array.isArray(cloudData.folder.whitelist) && cloudData.folder.whitelist.length) {
+      whitelist = cloudData.folder.whitelist;
+    } else if (projectPkg && projectPkg.f && Array.isArray(projectPkg.f.whitelist) && projectPkg.f.whitelist.length) {
+      whitelist = projectPkg.f.whitelist;
+    }
+
+    // Check whitelist status helper
+    function checkWhitelist(email) {
+      if (!email) return { allowed: false, reason: 'empty' };
+      const clean = email.toLowerCase().trim();
+      if (hostEmail && hostEmail === clean) {
+        return { allowed: true, role: 'host', isHost: true };
+      }
+      if (!Array.isArray(whitelist)) return { allowed: false, reason: 'not_on_whitelist' };
+      const match = whitelist.find(w => {
+        const wEmail = (typeof w === 'string' ? w : (w && w.email ? w.email : '')).toLowerCase().trim();
+        return wEmail === clean;
+      });
+      if (match) {
+        const role = (typeof match === 'object' && (match.role === 'visitor' || match.role === 'viewer')) ? 'visitor' : 'member';
+        return { allowed: true, role: role, isHost: false };
+      }
+      return { allowed: false, reason: 'not_on_whitelist' };
+    }
+
+    // 2. Identify Current User
+    const curUser = (window.CloudSync && window.CloudSync.getCurrentUser && window.CloudSync.getCurrentUser());
+    const storedEmail = ((curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '').toLowerCase().trim();
+    const storedName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
+
+    // Function to execute join once authorized
+    function executeJoin(userEmail, userName, assignedRole) {
+      unmarkFolderAsDeleted(joinFolderId);
+      if (folder && Array.isArray(folder.kickedEmails)) {
+        folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase().trim() !== userEmail.toLowerCase().trim());
+      }
+
+      if (!folder) {
+        folder = {
+          id: joinFolderId,
+          name: (cloudData && cloudData.folder && cloudData.folder.name) || (projectPkg && projectPkg.f && projectPkg.f.name) || folderName,
+          icon: (cloudData && cloudData.folder && cloudData.folder.icon) || (projectPkg && projectPkg.f && projectPkg.f.icon) || folderIcon,
+          color: COLLAB_PROJECT_COLOR,
+          desc: (cloudData && cloudData.folder && cloudData.folder.desc) || (projectPkg && projectPkg.f && projectPkg.f.desc) || `Shared project invited by ${hostEmail || 'Host'}`,
+          hostEmail: hostEmail || 'host@taskerup.io',
+          isCollaborative: true,
+          isJoined: true,
+          whitelist: whitelist,
+          kickedEmails: [],
+          members: (cloudData && cloudData.folder && Array.isArray(cloudData.folder.members) && cloudData.folder.members.length) ? cloudData.folder.members : [
+            {
+              id: 'mem-host-' + joinFolderId,
+              email: hostEmail || 'host@taskerup.io',
+              name: hostEmail.includes('@') ? hostEmail.split('@')[0] : 'Host',
+              role: 'host',
+              joinedAt: Date.now() - 3600000,
+              avatarColor: '#f59e0b'
+            }
+          ],
+          chat: (cloudData && cloudData.folder && Array.isArray(cloudData.folder.chat) && cloudData.folder.chat.length) ? cloudData.folder.chat : (
+            (projectPkg && projectPkg.chat && projectPkg.chat.length) ? projectPkg.chat : [
+              {
+                id: 'msg-' + Date.now(),
+                isSystem: true,
+                text: `📁 Project shared by ${hostEmail || 'Host'}`,
+                createdAt: Date.now()
+              }
+            ]
+          )
+        };
+        state.folders.unshift(folder);
+      } else {
+        state.folders = [folder, ...state.folders.filter(f => f.id !== folder.id)];
+        folder.isCollaborative = true;
+        folder.color = COLLAB_PROJECT_COLOR;
+        if (whitelist.length && (!folder.whitelist || !folder.whitelist.length)) {
+          folder.whitelist = whitelist;
+        }
+      }
+
+      ensureFolderCollaboration(folder);
+
+      // Import categories
+      const incomingCats = (cloudData && Array.isArray(cloudData.categories)) ? cloudData.categories : ((projectPkg && Array.isArray(projectPkg.c)) ? projectPkg.c : []);
+      incomingCats.forEach(cat => {
         const existingCat = state.categories.find(c => c.id === cat.id);
         if (!existingCat) {
           state.categories.push({
@@ -4054,10 +4121,10 @@
           existingCat.folderId = folder.id;
         }
       });
-    }
 
-    if (projectPkg && Array.isArray(projectPkg.t)) {
-      projectPkg.t.forEach(t => {
+      // Import tasks
+      const incomingTasks = (cloudData && Array.isArray(cloudData.tasks)) ? cloudData.tasks : ((projectPkg && Array.isArray(projectPkg.t)) ? projectPkg.t : []);
+      incomingTasks.forEach(t => {
         const existingTask = state.tasks.find(x => x.id === t.id);
         if (!existingTask) {
           state.tasks.push({
@@ -4065,7 +4132,7 @@
             title: t.title,
             notes: t.notes || '',
             folderId: folder.id,
-            categoryId: t.catId || null,
+            categoryId: t.categoryId || t.catId || null,
             priority: t.priority || 'normal',
             dueDate: t.dueDate || null,
             completed: !!t.completed,
@@ -4073,7 +4140,7 @@
             completedBy: t.completedBy || null,
             memberCompleted: !!t.memberCompleted,
             starred: !!t.starred,
-            createdAt: Date.now()
+            createdAt: t.createdAt || Date.now()
           });
         } else {
           existingTask.folderId = folder.id;
@@ -4081,96 +4148,183 @@
           existingTask.memberCompleted = !!t.memberCompleted;
         }
       });
-    }
 
-    if (projectPkg && Array.isArray(projectPkg.chat)) {
-      projectPkg.chat.forEach(msg => {
-        if (!folder.chat.some(c => c.id === msg.id)) {
-          folder.chat.push(msg);
+      // Register or update member in folder
+      let memberObj = folder.members.find(m => m.email && m.email.toLowerCase() === userEmail.toLowerCase());
+      const isNewMember = !memberObj;
+
+      if (isNewMember) {
+        memberObj = {
+          id: 'mem-' + Date.now(),
+          name: userName,
+          email: userEmail,
+          role: assignedRole,
+          joinedAt: Date.now(),
+          avatarColor: '#3b82f6'
+        };
+        folder.members.push(memberObj);
+
+        // System join announcement
+        const joinMsg = {
+          id: 'msg-join-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          isSystem: true,
+          text: `🎉 ${userName} has joined the ${folder.name} project`,
+          createdAt: Date.now()
+        };
+        folder.chat.push(joinMsg);
+
+        if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
+          window.CloudSync.sendProjectChatMessage(folder.id, joinMsg);
         }
-      });
-    }
-
-    const memberName = defaultName || (defaultEmail ? defaultEmail.split('@')[0] : 'Collaborator');
-    const memberEmail = defaultEmail || (memberName.toLowerCase().replace(/[^a-z0-9]/g, '.') + '@collaborator.io');
-    const assignedRole = (folderRole === 'visitor' || folderRole === 'viewer') ? 'visitor' : 'member';
-
-    // Ensure member is not on local kick list
-    if (Array.isArray(folder.kickedEmails)) {
-      folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase().trim() !== memberEmail.toLowerCase().trim());
-    }
-
-    // Register member immediately without blocking modal
-    let memberObj = folder.members.find(m => m.email && m.email.toLowerCase() === memberEmail.toLowerCase());
-    const isNewMember = !memberObj;
-
-    if (isNewMember) {
-      memberObj = {
-        id: 'mem-' + Date.now(),
-        name: memberName,
-        email: memberEmail,
-        role: assignedRole,
-        joinedAt: Date.now(),
-        avatarColor: '#3b82f6'
-      };
-      folder.members.push(memberObj);
-
-      // System join announcement: "[name] has joined the [name of project] project"
-      const joinMsg = {
-        id: 'msg-join-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-        isSystem: true,
-        text: `🎉 ${memberName} has joined the ${folder.name} project`,
-        createdAt: Date.now()
-      };
-      folder.chat.push(joinMsg);
-
-      if (window.CloudSync && typeof window.CloudSync.sendProjectChatMessage === 'function') {
-        window.CloudSync.sendProjectChatMessage(folder.id, joinMsg);
+      } else {
+        memberObj.role = assignedRole;
+        if (userName && userName !== 'Collaborator') memberObj.name = userName;
       }
-    } else {
-      memberObj.role = assignedRole;
-      if (memberName && memberName !== 'Collaborator') memberObj.name = memberName;
-    }
 
-    localStorage.setItem('tasker_user_name', memberName);
-    localStorage.setItem('tasker_user_email', memberEmail);
-    localStorage.setItem('tasker_user_role', assignedRole);
+      localStorage.setItem('tasker_user_name', userName);
+      localStorage.setItem('tasker_user_email', userEmail);
+      localStorage.setItem('tasker_user_role', assignedRole);
 
-    folder.isCollaborative = true;
-    folder.color = COLLAB_PROJECT_COLOR;
+      folder.isCollaborative = true;
+      folder.color = COLLAB_PROJECT_COLOR;
 
-    // Switch view immediately to this project so user sees it right away!
-    state.activeView = { type: 'folder', id: folder.id };
-    state.entry.folderId = folder.id;
+      // Switch active view to this folder immediately!
+      state.activeView = { type: 'folder', id: folder.id };
+      state.entry.folderId = folder.id;
 
-    saveState(false, true);
-    renderAll();
+      saveState(false, true);
+      renderAll();
 
-    // Connect cloud listener for real-time collaboration if available
-    if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
-      window.CloudSync.listenToCollaborativeProject(folder.id, (cloudData) => {
-        handleSharedProjectIncomingSync(folder.id, cloudData);
-      });
-    }
-
-    // Push joined member to Firestore so host and cloud register this member immediately
-    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
-      const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
-      const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
-      window.CloudSync.syncCollaborativeProject(folder, childTasks, childCategories);
-    }
-
-    if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
-    showToast(`🎉 ${memberName} has joined the ${folder.name} project!`, 'success');
-    SoundFX.complete();
-
-    try {
-      let cleanUrl = window.location.origin + window.location.pathname;
-      if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
-        cleanUrl = window.location.href.split('?')[0].split('#')[0];
+      if (window.CloudSync && typeof window.CloudSync.listenToCollaborativeProject === 'function') {
+        window.CloudSync.listenToCollaborativeProject(folder.id, (incomingData) => {
+          handleSharedProjectIncomingSync(folder.id, incomingData);
+        });
       }
-      window.history.replaceState({}, document.title, cleanUrl);
-    } catch (e) {}
+
+      if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+        const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+        const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
+        window.CloudSync.syncCollaborativeProject(folder, childTasks, childCategories);
+      }
+
+      if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
+      showToast(`🎉 Access verified! Welcome to "${folder.name}".`, 'success');
+      SoundFX.complete();
+      cleanUrlParams();
+    }
+
+    // 3. If storedEmail exists, test whitelist
+    if (storedEmail) {
+      const authCheck = checkWhitelist(storedEmail);
+      if (authCheck.allowed) {
+        executeJoin(storedEmail, storedName || storedEmail.split('@')[0], authCheck.role);
+        return;
+      } else {
+        // Stored email is not whitelisted: IT WILL NOT WORK!
+        SoundFX.error();
+        showToast(`🚫 Access Denied: "${storedEmail}" is not on the whitelist for "${folderName}".`, 'error', 8000);
+
+        // Open modal to show error and let them enter their whitelisted email
+        if (dom.acceptInviteModal) {
+          if (dom.acceptFolderName) dom.acceptFolderName.textContent = folderName;
+          if (dom.acceptHostName) dom.acceptHostName.textContent = hostEmail ? `Host: ${hostEmail}` : 'Private Project';
+          if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folderIcon;
+          if (dom.acceptMemberEmailInput) dom.acceptMemberEmailInput.value = storedEmail;
+          if (dom.acceptMemberNameInput) dom.acceptMemberNameInput.value = storedName;
+
+          if (dom.acceptInviteErrorBox) {
+            dom.acceptInviteErrorBox.style.display = 'block';
+            dom.acceptInviteErrorBox.innerHTML = `<strong>🚫 Access Denied</strong>The email <code>${escapeHtml(storedEmail)}</code> is not on the whitelist for this project. If you were invited under a different email address, please enter it below.`;
+          }
+
+          dom.acceptInviteModal.classList.add('open');
+
+          if (dom.confirmAcceptInviteBtn) {
+            dom.confirmAcceptInviteBtn.onclick = () => {
+              const enteredEmail = dom.acceptMemberEmailInput ? dom.acceptMemberEmailInput.value.trim().toLowerCase() : '';
+              const enteredName = dom.acceptMemberNameInput ? dom.acceptMemberNameInput.value.trim() : '';
+
+              if (!enteredEmail || !enteredEmail.includes('@')) {
+                showToast('Please enter a valid email address.', 'error');
+                return;
+              }
+
+              const check = checkWhitelist(enteredEmail);
+              if (check.allowed) {
+                if (dom.acceptInviteErrorBox) dom.acceptInviteErrorBox.style.display = 'none';
+                executeJoin(enteredEmail, enteredName || enteredEmail.split('@')[0], check.role);
+              } else {
+                SoundFX.error();
+                if (dom.acceptInviteErrorBox) {
+                  dom.acceptInviteErrorBox.style.display = 'block';
+                  dom.acceptInviteErrorBox.innerHTML = `<strong>🚫 Access Denied</strong><code>${escapeHtml(enteredEmail)}</code> is not on the whitelist for this project. Please ask the project host to whitelist your email.`;
+                }
+                showToast(`🚫 Access Denied: "${enteredEmail}" is not on the whitelist for this project.`, 'error');
+              }
+            };
+          }
+
+          if (dom.declineInviteBtn) {
+            dom.declineInviteBtn.onclick = () => {
+              dom.acceptInviteModal.classList.remove('open');
+              cleanUrlParams();
+            };
+          }
+        } else {
+          cleanUrlParams();
+        }
+        return;
+      }
+    }
+
+    // 4. Stored email is empty: prompt user to enter their whitelisted email
+    if (dom.acceptInviteModal) {
+      if (dom.acceptFolderName) dom.acceptFolderName.textContent = folderName;
+      if (dom.acceptHostName) dom.acceptHostName.textContent = hostEmail ? `Host: ${hostEmail}` : 'Private Project';
+      if (dom.acceptProjectIcon) dom.acceptProjectIcon.textContent = folderIcon;
+      if (dom.acceptMemberEmailInput) {
+        dom.acceptMemberEmailInput.value = '';
+        dom.acceptMemberEmailInput.focus();
+      }
+      if (dom.acceptMemberNameInput) dom.acceptMemberNameInput.value = '';
+      if (dom.acceptInviteErrorBox) {
+        dom.acceptInviteErrorBox.style.display = 'none';
+      }
+
+      dom.acceptInviteModal.classList.add('open');
+
+      if (dom.confirmAcceptInviteBtn) {
+        dom.confirmAcceptInviteBtn.onclick = () => {
+          const enteredEmail = dom.acceptMemberEmailInput ? dom.acceptMemberEmailInput.value.trim().toLowerCase() : '';
+          const enteredName = dom.acceptMemberNameInput ? dom.acceptMemberNameInput.value.trim() : '';
+
+          if (!enteredEmail || !enteredEmail.includes('@')) {
+            showToast('Please enter a valid email address.', 'error');
+            return;
+          }
+
+          const check = checkWhitelist(enteredEmail);
+          if (check.allowed) {
+            if (dom.acceptInviteErrorBox) dom.acceptInviteErrorBox.style.display = 'none';
+            executeJoin(enteredEmail, enteredName || enteredEmail.split('@')[0], check.role);
+          } else {
+            SoundFX.error();
+            if (dom.acceptInviteErrorBox) {
+              dom.acceptInviteErrorBox.style.display = 'block';
+              dom.acceptInviteErrorBox.innerHTML = `<strong>🚫 Access Denied</strong><code>${escapeHtml(enteredEmail)}</code> is not on the whitelist for this project. Please ask the project host to whitelist your email.`;
+            }
+            showToast(`🚫 Access Denied: "${enteredEmail}" is not on the whitelist for this project.`, 'error');
+          }
+        };
+      }
+
+      if (dom.declineInviteBtn) {
+        dom.declineInviteBtn.onclick = () => {
+          dom.acceptInviteModal.classList.remove('open');
+          cleanUrlParams();
+        };
+      }
+    }
   }
 
   function revokeKickedFolderAccess(folderId, fallbackName = 'Collaborative Project') {

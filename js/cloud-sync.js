@@ -993,6 +993,27 @@
     }
   }
 
+  /**
+   * Fetches the collaborative project document from Firestore once by folderId.
+   */
+  async function getCollaborativeProject(folderId) {
+    if (!folderId) return null;
+    if (!db) {
+      initFirebase();
+    }
+    if (!db) return null;
+    try {
+      const doc = await db.collection('shared_projects').doc(folderId).get();
+      if (doc && doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (err) {
+      console.warn('getCollaborativeProject failed', err);
+      return null;
+    }
+  }
+
   // ==========================================
   // EXPORT
   // ==========================================
@@ -1008,6 +1029,7 @@
     unshareCollaborativeProject,
     deleteCollaborativeProject,
     listenToCollaborativeProject,
+    getCollaborativeProject,
     sendProjectChatMessage,
     resetProjectChat,
     setTypingStatus

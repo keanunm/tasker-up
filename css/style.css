@@ -2729,30 +2729,58 @@ html, body {
   background: var(--bg-surface);
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 0.78rem;
+  padding: 6px 10px;
+  font-size: 0.72rem;
   color: #c7d2fe;
   font-family: 'JetBrains Mono', monospace;
   outline: none;
+  height: 32px;
+  box-sizing: border-box;
 }
 .copy-invite-link-btn {
   background: var(--gradient-brand);
   border: none;
   border-radius: var(--radius-sm);
   color: #fff;
-  padding: 8px 14px;
-  font-size: 0.8rem;
+  padding: 6px 12px;
+  font-size: 0.76rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
   white-space: nowrap;
+  height: 32px;
+  box-sizing: border-box;
   transition: all var(--trans-fast);
 }
 .copy-invite-link-btn:hover {
   filter: brightness(1.15);
   transform: translateY(-1px);
+}
+
+.accept-invite-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  text-align: left;
+  font-size: 0.78rem;
+  color: #fca5a5;
+  line-height: 1.45;
+}
+.accept-invite-error strong {
+  color: #f87171;
+  display: block;
+  margin-bottom: 3px;
+}
+.accept-invite-error code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fecaca;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .invite-form-card {
