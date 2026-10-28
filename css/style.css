@@ -1811,7 +1811,7 @@ html, body {
     display: flex;
   }
   .mobile-close-btn {
-    display: flex;
+    display: none !important;
   }
   .app-container {
     padding-top: var(--header-height);

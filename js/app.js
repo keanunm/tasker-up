@@ -4671,11 +4671,14 @@
   // 16. EVENT LISTENERS SETUP
   // ==========================================
   function bindEventListeners() {
-    // Mobile Drawer
-    dom.mobileMenuBtn.addEventListener('click', () => {
-      dom.sidebar.classList.toggle('open');
-    });
-    dom.sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+    if (dom.mobileMenuBtn) {
+      dom.mobileMenuBtn.addEventListener('click', () => {
+        dom.sidebar.classList.toggle('open');
+      });
+    }
+    if (dom.sidebarCloseBtn) {
+      dom.sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+    }
 
     // System views buttons
     dom.systemViewsList.querySelectorAll('.nav-item').forEach(btn => {
