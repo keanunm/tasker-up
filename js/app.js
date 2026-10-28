@@ -3506,17 +3506,16 @@
         row.innerHTML = `
           <div class="member-profile-wrap">
             <div class="member-avatar-badge" style="background-color: ${item.avatarColor || '#3b82f6'};">
-              ${item.isHost ? '👑' : initial}
+              ${initial}
             </div>
             <div class="member-details">
               <span class="member-name-text">
                 ${escapeHtml(item.name)}
-                ${item.isHost ? '👑' : ''}
               </span>
             </div>
           </div>
           <div class="member-actions-wrap">
-            <span class="whitelist-status-pill ${item.status === 'Active' || item.isHost ? 'active' : 'pending'}">${item.status}</span>
+            ${item.isHost ? '' : `<span class="whitelist-status-pill ${item.status === 'Active' ? 'active' : 'pending'}">${item.status}</span>`}
             <span class="role-badge ${roleClass}">${roleLabel}</span>
             ${(!item.isHost && isHostViewing) ? `<button type="button" class="kick-member-btn" data-email="${escapeHtml(item.email)}">Remove</button>` : ''}
           </div>
@@ -3758,7 +3757,7 @@
 
     const user = getCurrentUserIdentity(folder);
     if (dom.chatUserIdentity) {
-      dom.chatUserIdentity.textContent = `${user.role === 'host' ? '👑' : '👤'} ${user.name} (${user.role.toUpperCase()})`;
+      dom.chatUserIdentity.textContent = `👤 ${user.name} (${user.role.toUpperCase()})`;
     }
 
     // Render Messages
