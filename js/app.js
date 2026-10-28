@@ -3184,7 +3184,7 @@
           host: folder.hostEmail || 'host@taskerup.io',
           collab: true,
           whitelist: folder.whitelist || [],
-          kicked: folder.kickedEmails || []
+          kicked: []
         },
         c: childCategories.map(c => ({
           id: c.id,
@@ -3975,23 +3975,11 @@
     const defaultEmail = (curUser && curUser.email) || localStorage.getItem('tasker_user_email') || '';
     const defaultName = (curUser && (curUser.displayName || (curUser.email && curUser.email.split('@')[0]))) || localStorage.getItem('tasker_user_name') || '';
 
-    const kickedList = [
-      ...(projectPkg && projectPkg.f && Array.isArray(projectPkg.f.kicked) ? projectPkg.f.kicked : []),
-      ...(folder && Array.isArray(folder.kickedEmails) ? folder.kickedEmails : [])
-    ].map(e => (e || '').toLowerCase().trim());
-
-    if (defaultEmail && kickedList.includes(defaultEmail.toLowerCase().trim())) {
-      showToast('🚫 You were removed from this collaborative project by the host and cannot rejoin.', 'error');
-      try {
-        let cleanUrl = window.location.origin + window.location.pathname;
-        if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
-          cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        }
-        window.history.replaceState({}, document.title, cleanUrl);
-      } catch (e) {}
-      return;
-    }
+    // Allow rejoining via invite link even if previously kicked: unban and unmark deleted
     unmarkFolderAsDeleted(joinFolderId);
+    if (folder && Array.isArray(folder.kickedEmails) && defaultEmail) {
+      folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase().trim() !== defaultEmail.toLowerCase().trim());
+    }
     if (!folder) {
       folder = {
         id: joinFolderId,
@@ -4093,6 +4081,11 @@
     const memberEmail = defaultEmail || (memberName.toLowerCase().replace(/[^a-z0-9]/g, '.') + '@collaborator.io');
     const assignedRole = (folderRole === 'visitor' || folderRole === 'viewer') ? 'visitor' : 'member';
 
+    // Ensure member is not on local kick list
+    if (Array.isArray(folder.kickedEmails)) {
+      folder.kickedEmails = folder.kickedEmails.filter(e => (e || '').toLowerCase().trim() !== memberEmail.toLowerCase().trim());
+    }
+
     // Register member immediately without blocking modal
     let memberObj = folder.members.find(m => m.email && m.email.toLowerCase() === memberEmail.toLowerCase());
     const isNewMember = !memberObj;
@@ -4164,19 +4157,6 @@
       }
       window.history.replaceState({}, document.title, cleanUrl);
     } catch (e) {}
-
-    if (declineBtn) {
-      declineBtn.onclick = () => {
-        if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
-        try {
-          let cleanUrl = window.location.origin + window.location.pathname;
-          if (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null') {
-            cleanUrl = window.location.href.split('?')[0].split('#')[0];
-          }
-          window.history.replaceState({}, document.title, cleanUrl);
-        } catch (e) {}
-      };
-    }
   }
 
   function revokeKickedFolderAccess(folderId, fallbackName = 'Collaborative Project') {
@@ -4302,7 +4282,8 @@
       return;
     }
 
-    const isKicked = !isMeHost && myEmail && kickedEmails.includes(myEmail);
+    const isMemberNow = folderMembers.some(m => m.email && m.email.toLowerCase().trim() === myEmail) || isWhitelisted;
+    const isKicked = !isMeHost && myEmail && kickedEmails.includes(myEmail) && !isMemberNow;
 
     if (isKicked) {
       if (localFolder) {
