@@ -4021,8 +4021,9 @@
           }
         ]
       };
-      state.folders.push(folder);
+      state.folders.unshift(folder);
     } else {
+      state.folders = [folder, ...state.folders.filter(f => f.id !== folder.id)];
       folder.isCollaborative = true;
       folder.color = COLLAB_PROJECT_COLOR;
       if (projectPkg && projectPkg.f && projectPkg.f.name) {
@@ -4143,6 +4144,13 @@
       window.CloudSync.listenToCollaborativeProject(folder.id, (cloudData) => {
         handleSharedProjectIncomingSync(folder.id, cloudData);
       });
+    }
+
+    // Push joined member to Firestore so host and cloud register this member immediately
+    if (window.CloudSync && typeof window.CloudSync.syncCollaborativeProject === 'function') {
+      const childTasks = state.tasks.filter(t => t && t.folderId === folder.id);
+      const childCategories = state.categories.filter(c => c && c.folderId === folder.id);
+      window.CloudSync.syncCollaborativeProject(folder, childTasks, childCategories);
     }
 
     if (dom.acceptInviteModal) dom.acceptInviteModal.classList.remove('open');
@@ -4294,7 +4302,7 @@
       return;
     }
 
-    const isKicked = !isMeHost && myEmail && (kickedEmails.includes(myEmail) || (!isStillMember && cloudData.folder && cloudData.folder.isCollaborative));
+    const isKicked = !isMeHost && myEmail && kickedEmails.includes(myEmail);
 
     if (isKicked) {
       if (localFolder) {
@@ -4350,7 +4358,7 @@
         }
       }
 
-      state.folders.push(folder);
+      state.folders.unshift(folder);
       showToast(`📁 Access granted to "${folder.name}" as a ${myRole === 'visitor' ? 'Visitor' : 'Member'}!`, 'info');
     } else {
       folder.isCollaborative = isCollabInCloud;
@@ -4362,7 +4370,18 @@
       if (cloudData.folder.name) folder.name = cloudData.folder.name;
       if (cloudData.folder.desc !== undefined) folder.desc = cloudData.folder.desc;
       if (cloudData.folder.icon) folder.icon = cloudData.folder.icon;
-      if (cloudData.folder.members) folder.members = cloudData.folder.members;
+      if (cloudData.folder.members) {
+        const memMap = new Map();
+        (cloudData.folder.members || []).forEach(m => {
+          if (m && m.email) memMap.set(m.email.toLowerCase().trim(), m);
+        });
+        (folder.members || []).forEach(m => {
+          if (m && m.email && !memMap.has(m.email.toLowerCase().trim())) {
+            memMap.set(m.email.toLowerCase().trim(), m);
+          }
+        });
+        folder.members = Array.from(memMap.values());
+      }
       if (cloudData.folder.whitelist) folder.whitelist = cloudData.folder.whitelist;
       else if (cloudData.whitelist) folder.whitelist = cloudData.whitelist;
 
@@ -4376,9 +4395,8 @@
       }
     }
 
-    if (cloudData.folder) {
-      if (cloudData.folder.name) folder.name = cloudData.folder.name;
-      if (cloudData.folder.members) folder.members = cloudData.folder.members;
+    if (cloudData.folder && cloudData.folder.name) {
+      folder.name = cloudData.folder.name;
     }
 
     // Merge incoming chat messages non-destructively by unique message ID
@@ -5079,9 +5097,7 @@
       if (!folderId) return;
       const f = state.folders.find(fold => fold.id === folderId);
       if (f) {
-        if (f.isJoined) {
-          revokeKickedFolderAccess(folderId, f.name || 'Shared Project');
-        } else {
+        if (!f.isJoined) {
           f.isCollaborative = false;
           if (f.color === COLLAB_PROJECT_COLOR) f.color = '#6366f1';
           if (dom.projectChatWidget) {
@@ -5279,6 +5295,7 @@
     addSampleTasks,
     handleSharedProjectIncomingSync,
     checkUrlJoinInvitation,
+    generateProjectInviteLink,
     serializeProjectPackage,
     renderAll
   };
