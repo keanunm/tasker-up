@@ -2613,6 +2613,17 @@ html, body {
   font-size: 0.74rem;
   color: var(--text-main);
 }
+.role-badge {
+  font-size: 0.66rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
 .member-chip-pill .role-badge {
   font-size: 0.68rem;
   padding: 1px 6px;
